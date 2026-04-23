@@ -120,6 +120,21 @@ html, body {
   font-size: 1.8rem;
   font-weight: 900;
   color: var(--text);
+  flex: 1;
+}
+.refresh-btn {
+  background: none;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 /* ── Cards ── */
@@ -656,26 +671,6 @@ canvas { width: 100% !important; height: 100% !important; }
   font-family: 'Nunito', sans-serif;
   font-weight: 600;
   flex: 1;
-}
-
-/* ── Pull-to-refresh ── */
-#ptr-indicator {
-  position: fixed;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--blue);
-  color: #fff;
-  font-family: 'Nunito', sans-serif;
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 6px 18px;
-  border-radius: 0 0 20px 20px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s;
-  z-index: 999;
-  white-space: nowrap;
 }
 
 /* ── Toast ── */

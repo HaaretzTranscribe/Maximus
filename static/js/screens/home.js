@@ -4,6 +4,7 @@ function renderHome() {
       <div class="app-logo">
         <div class="logo-icon">🏛️</div>
         <h1>Maximus</h1>
+        <button id="home-refresh-btn" class="refresh-btn" title="Refresh">↺</button>
       </div>
 
       <div id="install-hint" class="install-hint hidden">
@@ -32,6 +33,8 @@ function initHome(articles) {
   const container = document.getElementById('article-cards');
 
   // Wire up buttons regardless of article state
+  document.getElementById('home-refresh-btn').addEventListener('click', () => location.reload());
+
   document.getElementById('home-fetch-btn').addEventListener('click', async () => {
     const btn = document.getElementById('home-fetch-btn');
     btn.disabled = true;
