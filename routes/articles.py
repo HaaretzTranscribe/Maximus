@@ -1,7 +1,21 @@
 import traceback
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 from db import get_db
 from scraper import fetch_articles_for_slots
+
+
+def _audio_response(audio_bytes: bytes) -> Response:
+    """Return MP3 bytes with headers iOS Safari needs to play audio."""
+    return Response(
+        audio_bytes,
+        status=200,
+        mimetype="audio/mpeg",
+        headers={
+            "Content-Length": str(len(audio_bytes)),
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=86400",
+        },
+    )
 
 articles_bp = Blueprint("articles", __name__, url_prefix="/api/articles")
 
@@ -109,16 +123,14 @@ def get_tts(article_id):
         try:
             file_data = get_db().storage.from_("tts-audio").download(storage_path)
             if file_data and len(file_data) > 1000:
-                return send_file(io.BytesIO(file_data), mimetype="audio/mpeg", download_name="article.mp3")
+                return _audio_response(file_data)
         except Exception:
             pass
-        # Cached path is bad — clear it and regenerate
         get_db().table("articles").update({"tts_storage_path": None}).eq("id", article_id).execute()
 
     tts_text = f"{article['title']}. {article['body']}"
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-    # OpenAI TTS limit is 4096 chars — split into chunks and concatenate audio
     def split_chunks(text, limit=4000):
         chunks = []
         while len(text) > limit:
@@ -129,9 +141,8 @@ def get_tts(article_id):
             chunks.append(text)
         return chunks
 
-    chunks = split_chunks(tts_text)
     audio_parts = []
-    for chunk in chunks:
+    for chunk in split_chunks(tts_text):
         r = client.audio.speech.create(model="tts-1", voice="nova", input=chunk)
         audio_parts.append(r.content)
     audio_bytes = b"".join(audio_parts)
@@ -143,4 +154,4 @@ def get_tts(article_id):
     except Exception:
         pass
 
-    return send_file(io.BytesIO(audio_bytes), mimetype="audio/mpeg", download_name="article.mp3")
+    return _audio_response(audio_bytes)
