@@ -1,20 +1,6 @@
-const CACHE = 'maximus-v3';
-const SHELL = [
-  '/',
-  '/static/css/style.css',
-  '/static/js/api.js',
-  '/static/js/router.js',
-  '/static/js/app.js',
-  '/static/js/screens/home.js',
-  '/static/js/screens/article.js',
-  '/static/js/screens/debate.js',
-  '/static/js/screens/score.js',
-  '/static/js/screens/stats.js',
-  '/static/manifest.json',
-];
+const CACHE = 'maximus-v4';
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
   self.skipWaiting();
 });
 
@@ -28,10 +14,17 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // API calls: network only
+  // API calls: network only, never cache
   if (e.request.url.includes('/api/')) return;
 
+  // Network-first: always try to get fresh files, fall back to cache when offline
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request)
+      .then(response => {
+        const copy = response.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
