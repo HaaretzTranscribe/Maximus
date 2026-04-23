@@ -51,9 +51,13 @@ async function showDebate(articleId, article) {
     Router.go('article', { id: articleId });
   });
 
+  let backTapOnce = false;
   document.getElementById('debate-back').addEventListener('click', () => {
-    if (history.length > 0 && !confirm('Exit? Your debate progress will be lost.')) return;
-    Router.go('article', { id: articleId });
+    if (history.length === 0) { Router.go('article', { id: articleId }); return; }
+    if (backTapOnce) { Router.go('article', { id: articleId }); return; }
+    backTapOnce = true;
+    showToast('Tap back again to exit and lose progress.');
+    setTimeout(() => { backTapOnce = false; }, 3000);
   });
 
   document.getElementById('debate-mode-text').addEventListener('click', () => {
@@ -221,9 +225,15 @@ async function showDebate(articleId, article) {
     }
   });
 
+  let endTapOnce = false;
   endBtn.addEventListener('click', async () => {
     if (history.length === 0) { showToast('Start the debate first!'); return; }
-    if (!confirm('End debate and get your score?')) return;
+    if (!endTapOnce && userTurns < MAX_TURNS) {
+      endTapOnce = true;
+      showToast('Tap again to end early and get your score.');
+      setTimeout(() => { endTapOnce = false; }, 3000);
+      return;
+    }
 
     endBtn.disabled = true;
     endBtn.innerHTML = '<span class="spinner"></span> Scoring…';
