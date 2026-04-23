@@ -77,6 +77,7 @@ def send_message(article_id):
     history = body.get("history", [])  # [{role, content}]
     mode = body.get("mode", "text")
     user_text = body.get("content", "")
+    final_turn = body.get("final_turn", False)
 
     # Voice mode: transcribe audio first
     if mode == "voice":
@@ -113,6 +114,11 @@ def send_message(article_id):
     messages = [{"role": "system", "content": system_msg}]
     messages.extend(history)
     messages.append({"role": "user", "content": user_text})
+    if final_turn:
+        messages.append({
+            "role": "system",
+            "content": "Questo è l'ultimo scambio della conversazione. Concludi in modo naturale senza porre nuove domande.",
+        })
 
     client = _openai()
     response = client.chat.completions.create(
@@ -173,20 +179,27 @@ def end_debate(article_id):
     except json.JSONDecodeError:
         return jsonify({"error": "Scoring returned invalid JSON", "raw": raw}), 500
 
-    # Store session
-    get_db().table("sessions").insert({
-        "article_id": article_id,
-        "mode": mode,
-        "debate_transcript": transcript,
-        "overall_score": scoring["overall_score"],
-        "error_explanation_hebrew": scoring["error_explanation_hebrew"],
-        "error_categories": scoring["error_categories"],
-    }).execute()
+    score = scoring.get("overall_score", 0)
+    feedback = scoring.get("error_explanation_hebrew", "")
+    categories = scoring.get("error_categories", {})
 
-    # Update article status to scored
-    get_db().table("articles").update({"status": "scored"}).eq("id", article_id).execute()
+    # Store session — errors here must not block the score from reaching the user
+    try:
+        from datetime import datetime, timezone
+        get_db().table("sessions").insert({
+            "article_id": article_id,
+            "mode": mode,
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+            "debate_transcript": transcript,
+            "overall_score": score,
+            "error_explanation_hebrew": feedback,
+            "error_categories": categories,
+        }).execute()
+        get_db().table("articles").update({"status": "scored"}).eq("id", article_id).execute()
+    except Exception:
+        pass  # DB write failure must not prevent score from being shown
 
     return jsonify({
-        "score": scoring["overall_score"],
-        "error_explanation_hebrew": scoring["error_explanation_hebrew"],
+        "score": score,
+        "error_explanation_hebrew": feedback,
     })

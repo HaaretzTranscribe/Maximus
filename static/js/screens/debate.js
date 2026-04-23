@@ -125,7 +125,7 @@ async function showDebate(articleId, article) {
     showThinking();
 
     try {
-      const payload = { history: history.slice(0, -1), mode, content: userText };
+      const payload = { history: history.slice(0, -1), mode, content: userText, final_turn: userTurns >= MAX_TURNS };
       const data = await API.debate.message(articleId, payload);
       hideThinking();
       addBubble('assistant', data.assistant_text);
