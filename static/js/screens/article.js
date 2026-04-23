@@ -13,12 +13,12 @@ async function showArticle(articleId) {
 
   app.innerHTML = `
     <div id="screen-article" class="screen active">
-      <div class="article-sticky-header">
-        <div class="screen-header">
-          <button class="back-btn" id="article-back">‹ Back</button>
-          <h1>Article</h1>
-        </div>
+      <div class="screen-header">
+        <button class="back-btn" id="article-back">‹ Back</button>
+        <h1>Article</h1>
+      </div>
 
+      <div class="article-sticky-header">
         <div class="article-meta-block">
           <h2>${article.title}</h2>
           <div class="article-meta-row">

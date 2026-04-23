@@ -9,8 +9,9 @@ async function showDebate(articleId, article) {
         <h1>Debate</h1>
       </div>
 
-      <div class="article-ref-collapsed" id="article-ref">
-        📰 <strong>${article.title}</strong> — tap to re-read
+      <div class="article-ref-collapsed">
+        📰 <strong>${article.title}</strong>
+        <button class="reread-btn" id="article-ref">Re-read ›</button>
       </div>
 
       <div class="mode-toggle">

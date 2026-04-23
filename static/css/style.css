@@ -58,6 +58,7 @@ html, body {
   display: none;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 20px 16px;
 }
@@ -76,8 +77,8 @@ html, body {
   padding: 20px 16px 0;
 }
 
-/* Article screen: header sits inside article-sticky-header, no double-sticky */
-.article-sticky-header .screen-header {
+/* Article screen: back/title header scrolls away — only meta+audio sticks */
+#screen-article .screen-header {
   position: static;
   margin: 0 0 24px;
   padding: 0;
@@ -373,23 +374,41 @@ html, body {
 /* ── Debate view ── */
 #screen-debate {
   overflow: hidden;
+  min-height: 0;
 }
 
 .article-ref-collapsed {
   background: var(--blue-light);
   border: 2px solid var(--blue);
   border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  padding: 8px 14px;
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--blue-dark);
-  margin-bottom: 14px;
-  cursor: pointer;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
-.article-ref-collapsed strong { color: var(--text); }
+.article-ref-collapsed strong { color: var(--text); flex: 1; }
+.reread-btn {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 .conversation {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
