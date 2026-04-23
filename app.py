@@ -15,7 +15,14 @@ def index():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "app": "Maximus"})
+    import os
+    url = os.environ.get("SUPABASE_URL", "NOT SET")
+    return jsonify({
+        "status": "ok",
+        "app": "Maximus",
+        "supabase_url": url[:30] + "..." if len(url) > 30 else url,
+        "supabase_key_set": bool(os.environ.get("SUPABASE_SERVICE_KEY")),
+    })
 
 
 from routes.articles import articles_bp
