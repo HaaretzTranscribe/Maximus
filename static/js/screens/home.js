@@ -1,28 +1,23 @@
 function renderHome() {
-  const SECTION_LABELS = {
-    mondo: 'Mondo', italia: 'Italia', sport: 'Sport',
-    scienza: 'Scienza', tecnologia: 'Tecnologia', cultura: 'Cultura',
-  };
-  const SLOT_ORDER = ['mondo', 'italia', 'sport', 'scienza'];
-
   return `
     <div id="screen-home" class="screen active">
-      <div class="screen-header">
+      <div class="app-logo">
+        <div class="logo-icon">🏛️</div>
         <h1>Maximus</h1>
       </div>
 
       <div id="install-hint" class="install-hint hidden">
-        Tocca Condividi → "Aggiungi a schermata Home" per installare l'app.
+        Tap Share → "Add to Home Screen" to install the app.
       </div>
 
-      <button id="home-fetch-btn" class="btn btn-primary btn-full">
-        ⬇ Recupera nuovi articoli
+      <button id="home-fetch-btn" class="btn btn-primary btn-full" style="margin-bottom:20px;">
+        ⬇ Fetch new articles
       </button>
 
       <div id="article-cards"></div>
 
       <div class="mt-auto" style="padding-top:16px;">
-        <button id="home-stats-btn" class="btn btn-outline btn-full">📊 Statistiche</button>
+        <button id="home-stats-btn" class="btn btn-outline btn-full">📊 My stats</button>
       </div>
     </div>
   `;
@@ -30,37 +25,37 @@ function renderHome() {
 
 function initHome(articles) {
   const SECTION_LABELS = {
-    mondo: 'Mondo', italia: 'Italia', sport: 'Sport',
-    scienza: 'Scienza', tecnologia: 'Tecnologia', cultura: 'Cultura',
+    mondo: 'World', italia: 'Italy', sport: 'Sport',
+    scienza: 'Science', tecnologia: 'Technology', cultura: 'Culture',
   };
 
   const container = document.getElementById('article-cards');
 
   if (!articles || articles.every(a => a === null)) {
     container.innerHTML = `
-      <div class="card-placeholder">
-        Nessun articolo. Premi il pulsante qui sopra per recuperarli.
-      </div>
-    `.repeat(4);
-    // Show install hint on first open
+      <div class="card-placeholder">No articles yet — tap Fetch to get started.</div>
+      <div class="card-placeholder">World slot empty</div>
+      <div class="card-placeholder">Italy slot empty</div>
+      <div class="card-placeholder">Sport slot empty</div>
+    `;
     document.getElementById('install-hint').classList.remove('hidden');
     return;
   }
 
   container.innerHTML = articles.map(article => {
     if (!article) {
-      return `<div class="card-placeholder">Slot vuoto — premi Recupera nuovi articoli.</div>`;
+      return `<div class="card-placeholder">Slot empty — tap Fetch new articles.</div>`;
     }
     const section = SECTION_LABELS[article.section] || article.section;
     const date = article.published_at
-      ? new Date(article.published_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
+      ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
       : '';
     const statusLabel = {
-      not_started: 'Non iniziato',
-      in_progress: 'In corso',
-      scored: `Punteggio: ${article.score ?? '—'}`,
-      done: 'Completato',
-      rejected: 'Rifiutato',
+      not_started: 'Not started',
+      in_progress:  'In progress',
+      scored:       `Scored`,
+      done:         'Done',
+      rejected:     'Rejected',
     }[article.status] || article.status;
 
     return `
@@ -69,26 +64,24 @@ function initHome(articles) {
         <div class="card-title">${article.title}</div>
         <div class="card-meta">
           <span>${date}</span>
-          <span>${article.word_count} parole</span>
+          <span>${article.word_count} words</span>
           <span class="badge badge-${article.status}">${statusLabel}</span>
         </div>
       </div>
     `;
   }).join('');
 
-  // Card click → article view
   container.querySelectorAll('.card').forEach(card => {
     card.addEventListener('click', () => {
-      if (card.dataset.status === 'done') return; // done = archived, read-only
+      if (card.dataset.status === 'done') return;
       Router.go('article', { id: card.dataset.id });
     });
   });
 
-  // Fetch button
   document.getElementById('home-fetch-btn').addEventListener('click', async () => {
     const btn = document.getElementById('home-fetch-btn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Recupero…';
+    btn.innerHTML = '<span class="spinner"></span> Fetching…';
     try {
       const data = await API.articles.fetch();
       if (data.message) {
@@ -98,10 +91,10 @@ function initHome(articles) {
         initHome(data);
       }
     } catch (e) {
-      showToast('Errore durante il recupero. Riprova.');
+      showToast('Error fetching articles. Try again.');
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '⬇ Recupera nuovi articoli';
+      btn.innerHTML = '⬇ Fetch new articles';
     }
   });
 

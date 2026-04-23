@@ -5,28 +5,28 @@ async function showDebate(articleId, article) {
   app.innerHTML = `
     <div id="screen-debate" class="screen active">
       <div class="screen-header">
-        <button class="back-btn" id="debate-back">‹</button>
-        <h1>Dibattito</h1>
+        <button class="back-btn" id="debate-back">‹ Back</button>
+        <h1>Debate</h1>
       </div>
 
       <div class="article-ref-collapsed" id="article-ref">
-        <strong>${article.title}</strong> — tocca per rileggere
+        📰 <strong>${article.title}</strong> — tap to re-read
       </div>
 
       <div class="mode-toggle">
-        <button class="btn active" id="debate-mode-text">⌨ Testo</button>
-        <button class="btn" id="debate-mode-voice">🎤 Voce</button>
+        <button class="btn active" id="debate-mode-text">⌨️ Text</button>
+        <button class="btn" id="debate-mode-voice">🎤 Voice</button>
       </div>
 
       <div class="conversation" id="conversation"></div>
 
       <div class="debate-input-area">
         <div id="debate-text-row">
-          <textarea id="debate-text-input" rows="1" placeholder="Scrivi in italiano…"></textarea>
+          <textarea id="debate-text-input" rows="1" placeholder="Write in Italian…"></textarea>
           <button class="btn btn-primary" id="send-text-btn">➤</button>
         </div>
-        <button class="btn btn-secondary btn-full hidden" id="mic-btn">🎤 Tieni premuto per parlare</button>
-        <button class="btn btn-danger btn-full" id="end-debate-btn">Termina e ottieni il punteggio</button>
+        <button class="btn btn-secondary btn-full hidden" id="mic-btn">🎤 Tap to record</button>
+        <button class="btn btn-danger btn-full" id="end-debate-btn">End debate & get score</button>
       </div>
     </div>
   `;
@@ -37,25 +37,22 @@ async function showDebate(articleId, article) {
   const micBtn       = document.getElementById('mic-btn');
   const endBtn       = document.getElementById('end-debate-btn');
 
-  let history = [];  // [{role, content}]
-  let debateMode = 'text';
+  let history     = [];
+  let debateMode  = 'text';
   let mediaRecorder = null;
   let audioChunks   = [];
   let isRecording   = false;
   let isThinking    = false;
 
-  // Article ref tap → article view
   document.getElementById('article-ref').addEventListener('click', () => {
     Router.go('article', { id: articleId });
   });
 
-  // Back
   document.getElementById('debate-back').addEventListener('click', () => {
-    if (history.length > 0 && !confirm('Vuoi davvero uscire? Il dibattito verrà perso.')) return;
+    if (history.length > 0 && !confirm('Exit? Your debate progress will be lost.')) return;
     Router.go('article', { id: articleId });
   });
 
-  // Mode toggle
   document.getElementById('debate-mode-text').addEventListener('click', () => {
     debateMode = 'text';
     document.getElementById('debate-mode-text').classList.add('active');
@@ -63,6 +60,7 @@ async function showDebate(articleId, article) {
     document.getElementById('debate-text-row').classList.remove('hidden');
     micBtn.classList.add('hidden');
   });
+
   document.getElementById('debate-mode-voice').addEventListener('click', () => {
     debateMode = 'voice';
     document.getElementById('debate-mode-voice').classList.add('active');
@@ -74,7 +72,7 @@ async function showDebate(articleId, article) {
   function addBubble(role, text) {
     const div = document.createElement('div');
     div.className = `bubble bubble-${role}`;
-    const label = role === 'user' ? 'Tu' : 'Maximus';
+    const label = role === 'user' ? 'You' : 'Maximus';
     div.innerHTML = `<div class="bubble-label">${label}</div>${escapeHtml(text)}`;
     conversation.appendChild(div);
     conversation.scrollTop = conversation.scrollHeight;
@@ -109,14 +107,10 @@ async function showDebate(articleId, article) {
       hideThinking();
       addBubble('assistant', data.assistant_text);
       history.push({ role: 'assistant', content: data.assistant_text });
-
-      // Voice mode: speak the response
-      if (mode === 'voice') {
-        await speakText(data.assistant_text);
-      }
+      if (mode === 'voice') await speakText(data.assistant_text);
     } catch (e) {
       hideThinking();
-      addBubble('assistant', '[Errore di rete. Riprova.]');
+      addBubble('assistant', '[Network error. Please try again.]');
     } finally {
       isThinking = false;
       sendTextBtn.disabled = false;
@@ -125,22 +119,16 @@ async function showDebate(articleId, article) {
   }
 
   async function speakText(text) {
-    // Use browser TTS for AI responses in voice mode (avoids round-trip cost)
-    if ('speechSynthesis' in window) {
-      const utt = new SpeechSynthesisUtterance(text);
-      utt.lang = 'it-IT';
-      const voices = speechSynthesis.getVoices();
-      const italian = voices.find(v => v.lang.startsWith('it'));
-      if (italian) utt.voice = italian;
-      utt.rate = 0.9;
-      return new Promise(resolve => {
-        utt.onend = resolve;
-        speechSynthesis.speak(utt);
-      });
-    }
+    if (!('speechSynthesis' in window)) return;
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'it-IT';
+    const voices = speechSynthesis.getVoices();
+    const italian = voices.find(v => v.lang.startsWith('it'));
+    if (italian) utt.voice = italian;
+    utt.rate = 0.9;
+    return new Promise(resolve => { utt.onend = resolve; speechSynthesis.speak(utt); });
   }
 
-  // Text send
   sendTextBtn.addEventListener('click', () => {
     const text = textInput.value.trim();
     if (!text) return;
@@ -148,23 +136,17 @@ async function showDebate(articleId, article) {
     textInput.style.height = 'auto';
     sendMessage(text, 'text');
   });
+
   textInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendTextBtn.click();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTextBtn.click(); }
   });
   textInput.addEventListener('input', () => {
     textInput.style.height = 'auto';
     textInput.style.height = textInput.scrollHeight + 'px';
   });
 
-  // Voice recording
   micBtn.addEventListener('click', async () => {
-    if (isRecording) {
-      mediaRecorder?.stop();
-      return;
-    }
+    if (isRecording) { mediaRecorder?.stop(); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder = new MediaRecorder(stream);
@@ -173,7 +155,7 @@ async function showDebate(articleId, article) {
       mediaRecorder.onstop = async () => {
         isRecording = false;
         micBtn.classList.remove('recording');
-        micBtn.textContent = '🎤 Tieni premuto per parlare';
+        micBtn.textContent = '🎤 Tap to record';
         stream.getTracks().forEach(t => t.stop());
 
         const blob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -198,7 +180,7 @@ async function showDebate(articleId, article) {
             await speakText(data.assistant_text);
           } catch (e) {
             hideThinking();
-            addBubble('assistant', '[Errore. Riprova.]');
+            addBubble('assistant', '[Error. Please try again.]');
           } finally {
             isThinking = false;
             endBtn.disabled = false;
@@ -209,38 +191,30 @@ async function showDebate(articleId, article) {
       mediaRecorder.start();
       isRecording = true;
       micBtn.classList.add('recording');
-      micBtn.textContent = '⏹ Tocca per fermare';
+      micBtn.textContent = '⏹ Tap to stop';
     } catch (e) {
-      showToast('Microfono non disponibile.');
+      showToast('Microphone not available.');
     }
   });
 
-  // End debate
   endBtn.addEventListener('click', async () => {
-    if (history.length === 0) {
-      showToast('Inizia prima il dibattito!');
-      return;
-    }
-    if (!confirm('Terminare il dibattito e ottenere il punteggio?')) return;
+    if (history.length === 0) { showToast('Start the debate first!'); return; }
+    if (!confirm('End debate and get your score?')) return;
 
     endBtn.disabled = true;
-    endBtn.innerHTML = '<span class="spinner"></span> Valutazione…';
-
-    const mode = debateMode === 'voice'
-      ? (history.some(m => m.role === 'user') ? 'voice' : 'text')
-      : 'text';
+    endBtn.innerHTML = '<span class="spinner"></span> Scoring…';
 
     try {
-      const result = await API.debate.end(articleId, { transcript: history, mode });
+      const result = await API.debate.end(articleId, { transcript: history, mode: debateMode });
       Router.go('score', { score: result.score, feedback: result.error_explanation_hebrew, articleId });
     } catch (e) {
-      showToast('Errore durante la valutazione. Riprova.');
+      showToast('Scoring error. Try again.');
       endBtn.disabled = false;
-      endBtn.textContent = 'Termina e ottieni il punteggio';
+      endBtn.textContent = 'End debate & get score';
     }
   });
 
-  // Greeting from the AI to open the debate
+  // Opening message from AI
   (async () => {
     showThinking();
     try {
@@ -255,8 +229,6 @@ async function showDebate(articleId, article) {
         { role: 'user', content: `Ciao! Ho letto l'articolo "${article.title}". Sono pronto a discuterne.` },
         { role: 'assistant', content: data.assistant_text },
       ];
-    } catch {
-      hideThinking();
-    }
+    } catch { hideThinking(); }
   })();
 }

@@ -3,39 +3,38 @@ async function showArticle(articleId) {
   const article = await API.articles.get(articleId);
 
   const SECTION_LABELS = {
-    mondo: 'Mondo', italia: 'Italia', sport: 'Sport',
-    scienza: 'Scienza', tecnologia: 'Tecnologia', cultura: 'Cultura',
+    mondo: 'World', italia: 'Italy', sport: 'Sport',
+    scienza: 'Science', tecnologia: 'Technology', cultura: 'Culture',
   };
   const section = SECTION_LABELS[article.section] || article.section;
   const date = article.published_at
-    ? new Date(article.published_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
 
-  // Replace home screen content with article view
   app.innerHTML = `
     <div id="screen-article" class="screen active">
       <div class="screen-header">
-        <button class="back-btn" id="article-back">‹</button>
-        <h1>Articolo</h1>
+        <button class="back-btn" id="article-back">‹ Back</button>
+        <h1>Article</h1>
       </div>
 
       <div class="article-meta-block">
         <h2>${article.title}</h2>
         <div class="article-meta-row">
-          <span class="badge badge-${article.status}">${section}</span>
+          <span class="badge badge-in_progress">${section}</span>
           <span>${date}</span>
-          <span>${article.word_count} parole</span>
+          <span>${article.word_count} words</span>
         </div>
       </div>
 
       <div class="mode-toggle">
-        <button class="btn active" id="mode-read">📖 Leggi</button>
-        <button class="btn" id="mode-listen">🔊 Ascolta</button>
+        <button class="btn active" id="mode-read">📖 Read</button>
+        <button class="btn" id="mode-listen">🔊 Listen</button>
       </div>
 
       <div class="audio-player" id="audio-player">
         <audio id="article-audio" controls preload="none">
-          Il tuo browser non supporta l'audio.
+          Your browser does not support audio.
         </audio>
       </div>
 
@@ -43,22 +42,20 @@ async function showArticle(articleId) {
       <div class="article-body" id="article-body">${escapeHtml(article.body)}</div>
 
       <div class="article-actions">
-        <button class="btn btn-primary btn-full" id="start-debate-btn">💬 Inizia il dibattito</button>
+        <button class="btn btn-primary btn-full" id="start-debate-btn">💬 Start debate</button>
         <div class="btn-row">
-          <button class="btn btn-danger" id="reject-btn">❌ Rifiuta</button>
-          <button class="btn btn-success" id="done-btn">✓ Segna come fatto</button>
+          <button class="btn btn-danger" id="reject-btn">❌ Reject</button>
+          <button class="btn btn-success" id="done-btn">✓ Mark done</button>
         </div>
       </div>
     </div>
   `;
 
-  // Back
   document.getElementById('article-back').addEventListener('click', () => Router.go('home'));
 
-  // Mode toggle
   const audioPlayer = document.getElementById('audio-player');
-  const audioEl = document.getElementById('article-audio');
-  let audioLoaded = false;
+  const audioEl     = document.getElementById('article-audio');
+  let audioLoaded   = false;
 
   document.getElementById('mode-read').addEventListener('click', () => {
     document.getElementById('mode-read').classList.add('active');
@@ -76,22 +73,19 @@ async function showArticle(articleId) {
     }
   });
 
-  // Start debate
   document.getElementById('start-debate-btn').addEventListener('click', () => {
     Router.go('debate', { id: articleId, article });
   });
 
-  // Reject
   document.getElementById('reject-btn').addEventListener('click', async () => {
     await API.articles.setStatus(articleId, 'rejected');
-    showToast('Articolo rifiutato.');
+    showToast('Article rejected.');
     Router.go('home');
   });
 
-  // Done
   document.getElementById('done-btn').addEventListener('click', async () => {
     await API.articles.setStatus(articleId, 'done');
-    showToast('Articolo completato.');
+    showToast('Article marked done.');
     Router.go('home');
   });
 }
