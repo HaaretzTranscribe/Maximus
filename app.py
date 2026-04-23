@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
-app.config["PROPAGATE_EXCEPTIONS"] = True
 
 
 @app.route("/")
@@ -15,14 +14,7 @@ def index():
 
 @app.route("/health")
 def health():
-    import os
-    url = os.environ.get("SUPABASE_URL", "NOT SET")
-    return jsonify({
-        "status": "ok",
-        "app": "Maximus",
-        "supabase_url": url[:30] + "..." if len(url) > 30 else url,
-        "supabase_key_set": bool(os.environ.get("SUPABASE_SERVICE_KEY")),
-    })
+    return jsonify({"status": "ok", "app": "Maximus"})
 
 
 from routes.articles import articles_bp

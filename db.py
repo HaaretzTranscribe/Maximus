@@ -6,5 +6,7 @@ _client: Client | None = None
 def get_db() -> Client:
     global _client
     if _client is None:
-        _client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
+        url = os.environ["SUPABASE_URL"].rstrip("/")
+        key = os.environ["SUPABASE_SERVICE_KEY"]
+        _client = create_client(url, key)
     return _client
