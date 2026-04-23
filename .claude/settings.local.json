@@ -4,7 +4,11 @@
       "Bash(python -c ' *)",
       "Bash(where py *)",
       "Bash(py --version)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(sort -t_ -k1)",
+      "Bash(cat)",
+      "Bash(chmod +x /tmp/extract_tools.sh)",
+      "Bash(bash /tmp/extract_tools.sh)"
     ]
   }
 }
