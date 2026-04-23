@@ -24,7 +24,8 @@ function showToast(msg, duration = 3000) {
 
   document.addEventListener('touchstart', e => {
     const screen = document.querySelector('.screen.active');
-    if (!screen) return;
+    // Never trigger PTR on debate — it uses overflow:hidden and scrollTop is always 0
+    if (!screen || screen.id === 'screen-debate') return;
     if (screen.scrollTop === 0) {
       startY = e.touches[0].clientY;
       pulling = true;
