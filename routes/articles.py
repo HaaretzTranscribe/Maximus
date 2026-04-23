@@ -1,3 +1,4 @@
+import traceback
 from flask import Blueprint, jsonify, request
 from db import get_db
 from scraper import fetch_articles_for_slots
@@ -27,6 +28,12 @@ def get_current():
 
 @articles_bp.route("/fetch", methods=["POST"])
 def fetch_articles():
+  try:
+   return _fetch_articles_inner()
+  except Exception as e:
+   return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+def _fetch_articles_inner():
     # Determine which slots need filling (rejected or empty)
     result = (
         get_db().table("articles")
