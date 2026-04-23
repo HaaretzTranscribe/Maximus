@@ -5,79 +5,70 @@ from scraper import fetch_articles_for_slots
 
 articles_bp = Blueprint("articles", __name__, url_prefix="/api/articles")
 
+SECTION_ORDER = ["mondo", "italia", "sport", "scienza"]
+
+
+def _slot(section):
+    return section if section in ("mondo", "italia", "sport") else "scienza"
+
+
+def _current_articles():
+    result = get_db().table("articles").select(
+        "id,url,section,title,word_count,published_at,status,current_set"
+    ).filter("current_set", "eq", "true").execute()
+    rows = result.data or []
+    cards = {s: None for s in SECTION_ORDER}
+    for row in rows:
+        cards[_slot(row["section"])] = row
+    return [cards[s] for s in SECTION_ORDER]
+
 
 @articles_bp.route("/current", methods=["GET"])
 def get_current():
-    result = (
-        get_db().table("articles")
-        .select("id,url,section,title,word_count,published_at,status,current_set")
-        .eq("current_set", True)
-        .execute()
-    )
-    rows = result.data or []
-    # Ensure one card per expected section slot in display order
-    section_order = ["mondo", "italia", "sport", "scienza"]
-    cards = {s: None for s in section_order}
-    for row in rows:
-        sec = row["section"]
-        # Map scienza/tecnologia/cultura all to the fourth slot key
-        slot = sec if sec in ("mondo", "italia", "sport") else "scienza"
-        cards[slot] = row
-    return jsonify([cards[s] for s in section_order])
+    return jsonify(_current_articles())
 
 
 @articles_bp.route("/fetch", methods=["POST"])
 def fetch_articles():
-  try:
-   return _fetch_articles_inner()
-  except Exception as e:
-   return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+    try:
+        active = get_db().table("articles").select(
+            "id,section,status,current_set"
+        ).filter("current_set", "eq", "true").execute().data or []
 
-def _fetch_articles_inner():
-    # Determine which slots need filling (rejected or empty)
-    result = (
-        get_db().table("articles")
-        .select("id,section,status,current_set")
-        .eq("current_set", True)
-        .execute()
-    )
-    active = result.data or []
+        filled = {}
+        for row in active:
+            if row["status"] != "rejected":
+                filled[_slot(row["section"])] = True
 
-    section_order = ["mondo", "italia", "sport", "scienza"]
-    filled = {}
-    for row in active:
-        sec = row["section"]
-        slot = sec if sec in ("mondo", "italia", "sport") else "scienza"
-        if row["status"] != "rejected":
-            filled[slot] = True
+        slots_needed = [s for s in SECTION_ORDER if s not in filled]
 
-    slots_needed = [s for s in section_order if s not in filled]
+        if not slots_needed:
+            return jsonify({"message": "Nothing to replace. Mark articles as rejected or done first."})
 
-    if not slots_needed:
-        return jsonify({"message": "Nothing to replace. Mark articles as rejected or done first."}), 200
+        # Remove rejected articles from active set
+        for row in active:
+            if row["status"] == "rejected":
+                get_db().table("articles").update({"current_set": False}).eq("id", row["id"]).execute()
 
-    # Mark rejected articles as no longer current
-    for row in active:
-        if row["status"] == "rejected":
-            get_db().table("articles").update({"current_set": False}).eq("id", row["id"]).execute()
+        new_articles = fetch_articles_for_slots(slots_needed)
+        if not new_articles:
+            return jsonify({"error": "Could not find qualifying articles. Try again."}), 500
 
-    # Fetch new articles for empty/rejected slots
-    new_articles = fetch_articles_for_slots(slots_needed)
-    if not new_articles:
-        return jsonify({"error": "Could not find qualifying articles for all slots."}), 500
+        for article in new_articles:
+            existing = get_db().table("articles").select("id,status").eq("url", article["url"]).execute()
+            if existing.data:
+                row = existing.data[0]
+                if row["status"] != "done":
+                    get_db().table("articles").update({"current_set": True}).eq("id", row["id"]).execute()
+            else:
+                get_db().table("articles").insert({
+                    **article, "current_set": True, "status": "not_started"
+                }).execute()
 
-    # Upsert into articles table
-    for article in new_articles:
-        existing = get_db().table("articles").select("id,status").eq("url", article["url"]).execute()
-        if existing.data:
-            # Already in DB — just mark current_set=True if not done
-            row = existing.data[0]
-            if row["status"] not in ("done",):
-                get_db().table("articles").update({"current_set": True}).eq("id", row["id"]).execute()
-        else:
-            get_db().table("articles").insert({**article, "current_set": True, "status": "not_started"}).execute()
+        return jsonify(_current_articles())
 
-    return get_current()
+    except Exception as e:
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
 @articles_bp.route("/<article_id>", methods=["GET"])
@@ -92,9 +83,8 @@ def get_article(article_id):
 def set_status(article_id):
     body = request.get_json()
     new_status = body.get("status")
-    allowed = {"done", "rejected", "in_progress", "not_started"}
-    if new_status not in allowed:
-        return jsonify({"error": f"status must be one of {allowed}"}), 400
+    if new_status not in {"done", "rejected", "in_progress", "not_started"}:
+        return jsonify({"error": "invalid status"}), 400
     get_db().table("articles").update({"status": new_status}).eq("id", article_id).execute()
     return jsonify({"ok": True})
 
@@ -112,32 +102,26 @@ def get_tts(article_id):
     article = result.data
     storage_path = article.get("tts_storage_path")
 
-    # Return cached audio if available
     if storage_path:
         try:
             file_data = get_db().storage.from_("tts-audio").download(storage_path)
             return send_file(io.BytesIO(file_data), mimetype="audio/mpeg", download_name="article.mp3")
         except Exception:
-            pass  # Cache miss — regenerate
+            pass
 
-    # Generate TTS via OpenAI
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    text = f"{article['title']}. {article['body']}"
-
-    # Italian voice: 'alloy' tested as most natural for Italian
     response = client.audio.speech.create(
         model="tts-1",
         voice="alloy",
-        input=text,
+        input=f"{article['title']}. {article['body']}",
     )
     audio_bytes = response.content
 
-    # Cache in Supabase Storage
     path = f"{article_id}.mp3"
     try:
         get_db().storage.from_("tts-audio").upload(path, audio_bytes, {"content-type": "audio/mpeg"})
         get_db().table("articles").update({"tts_storage_path": path}).eq("id", article_id).execute()
     except Exception:
-        pass  # Non-fatal — still serve the audio
+        pass
 
     return send_file(io.BytesIO(audio_bytes), mimetype="audio/mpeg", download_name="article.mp3")
