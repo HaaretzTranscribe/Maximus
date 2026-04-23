@@ -1,4 +1,4 @@
-const CACHE = 'maximus-v1';
+const CACHE = 'maximus-v3';
 const SHELL = [
   '/',
   '/static/css/style.css',

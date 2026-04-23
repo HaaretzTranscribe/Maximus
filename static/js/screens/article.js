@@ -13,29 +13,36 @@ async function showArticle(articleId) {
 
   app.innerHTML = `
     <div id="screen-article" class="screen active">
-      <div class="screen-header">
-        <button class="back-btn" id="article-back">‹ Back</button>
-        <h1>Article</h1>
-      </div>
-
-      <div class="article-meta-block">
-        <h2>${article.title}</h2>
-        <div class="article-meta-row">
-          <span class="badge badge-in_progress">${section}</span>
-          <span>${date}</span>
-          <span>${article.word_count} words</span>
+      <div class="article-sticky-header">
+        <div class="screen-header">
+          <button class="back-btn" id="article-back">‹ Back</button>
+          <h1>Article</h1>
         </div>
-      </div>
 
-      <div class="mode-toggle">
-        <button class="btn active" id="mode-read">📖 Read</button>
-        <button class="btn" id="mode-listen">🔊 Listen</button>
-      </div>
+        <div class="article-meta-block">
+          <h2>${article.title}</h2>
+          <div class="article-meta-row">
+            <span class="badge badge-in_progress">${section}</span>
+            <span>${date}</span>
+            <span>${article.word_count} words</span>
+          </div>
+        </div>
 
-      <div class="audio-player" id="audio-player">
-        <audio id="article-audio" controls preload="none">
-          Your browser does not support audio.
-        </audio>
+        <div class="mode-toggle">
+          <button class="btn active" id="mode-read">📖 Read</button>
+          <button class="btn" id="mode-listen">🔊 Listen</button>
+        </div>
+
+        <div class="audio-player" id="audio-player">
+          <audio id="article-audio" controls preload="none">
+            Your browser does not support audio.
+          </audio>
+          <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
+            <button class="btn btn-outline speed-btn" data-speed="0.75" style="padding:6px 12px;font-size:0.8rem;">0.75×</button>
+            <button class="btn btn-outline speed-btn active" data-speed="1" style="padding:6px 12px;font-size:0.8rem;">1×</button>
+            <button class="btn btn-outline speed-btn" data-speed="1.25" style="padding:6px 12px;font-size:0.8rem;">1.25×</button>
+          </div>
+        </div>
       </div>
 
       <!-- Native selectable HTML — iOS Look Up works here -->
@@ -71,6 +78,14 @@ async function showArticle(articleId) {
       audioEl.src = API.articles.ttsUrl(articleId);
       audioLoaded = true;
     }
+  });
+
+  document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      audioEl.playbackRate = parseFloat(btn.dataset.speed);
+      document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
   });
 
   document.getElementById('start-debate-btn').addEventListener('click', () => {

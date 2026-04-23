@@ -269,6 +269,15 @@ html, body {
 }
 
 /* ── Article view ── */
+.article-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--white);
+  margin: -20px -16px 0;
+  padding: 20px 16px 0;
+}
+
 .article-meta-block {
   background: var(--bg);
   border-radius: var(--radius);
