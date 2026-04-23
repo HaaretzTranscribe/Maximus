@@ -118,18 +118,26 @@ def get_tts(article_id):
         # Cached path is bad — clear it and regenerate
         get_db().table("articles").update({"tts_storage_path": None}).eq("id", article_id).execute()
 
-    # OpenAI TTS limit is 4096 characters — truncate at a word boundary
     tts_text = f"{article['title']}. {article['body']}"
-    if len(tts_text) > 4096:
-        tts_text = tts_text[:4096].rsplit(' ', 1)[0]
-
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice="alloy",
-        input=tts_text,
-    )
-    audio_bytes = response.content
+
+    # OpenAI TTS limit is 4096 chars — split into chunks and concatenate audio
+    def split_chunks(text, limit=4000):
+        chunks = []
+        while len(text) > limit:
+            cut = text[:limit].rsplit(' ', 1)[0]
+            chunks.append(cut)
+            text = text[len(cut):].lstrip()
+        if text:
+            chunks.append(text)
+        return chunks
+
+    chunks = split_chunks(tts_text)
+    audio_parts = []
+    for chunk in chunks:
+        r = client.audio.speech.create(model="tts-1", voice="alloy", input=chunk)
+        audio_parts.append(r.content)
+    audio_bytes = b"".join(audio_parts)
 
     path = f"{article_id}.mp3"
     try:
