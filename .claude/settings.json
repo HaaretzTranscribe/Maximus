@@ -3,7 +3,16 @@
     "allow": [
       "Bash(*)",
       "WebFetch(*)",
-      "WebSearch(*)"
+      "WebSearch(*)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "mcp__ccd_session__mark_chapter",
+      "mcp__ccd_session__spawn_task",
+      "mcp__Claude_Preview__*",
+      "mcp__Claude_in_Chrome__*"
     ]
   }
 }
