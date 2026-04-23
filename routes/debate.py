@@ -158,8 +158,15 @@ def end_debate(article_id):
         model="gpt-4o",
         messages=[{"role": "user", "content": scoring_prompt}],
         temperature=0.2,
+        response_format={"type": "json_object"},
     )
     raw = scoring_response.choices[0].message.content.strip()
+    # Strip markdown fences GPT sometimes adds despite instructions
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
 
     try:
         scoring = json.loads(raw)
