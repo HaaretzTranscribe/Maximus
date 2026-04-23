@@ -639,6 +639,26 @@ canvas { width: 100% !important; height: 100% !important; }
   flex: 1;
 }
 
+/* ── Pull-to-refresh ── */
+#ptr-indicator {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--blue);
+  color: #fff;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 6px 18px;
+  border-radius: 0 0 20px 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 999;
+  white-space: nowrap;
+}
+
 /* ── Toast ── */
 .toast {
   position: fixed;
