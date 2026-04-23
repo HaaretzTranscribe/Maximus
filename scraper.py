@@ -83,11 +83,7 @@ def _extract_article(url: str, sess) -> dict | None:
             main = data["props"]["pageProps"]["data"]["data"]["main"]["data"]
 
             title = main.get("title", "")
-            timestamp = main.get("timestamp")  # Unix timestamp
-            pub_date = None
-            if timestamp:
-                from datetime import datetime, timezone
-                pub_date = datetime.fromtimestamp(int(timestamp), tz=timezone.utc).isoformat()
+            pub_date = main.get("timestamp")  # Already an ISO date string
 
             content_html = main.get("content_html", "")
             if content_html:
