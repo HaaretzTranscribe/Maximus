@@ -553,6 +553,30 @@ html, body {
 }
 
 /* ── Stats view ── */
+.stats-totals { margin-bottom: 16px; }
+.stats-total-row { display: flex; gap: 12px; }
+.stats-total-pill {
+  flex: 1;
+  background: var(--blue-light);
+  border: 2px solid var(--blue);
+  border-radius: var(--radius);
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--blue-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stats-total-pill span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
 .stats-section {
   background: var(--white);
   border: 2px solid var(--border);

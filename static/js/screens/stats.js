@@ -15,6 +15,8 @@ async function showStats() {
         <button class="btn btn-outline" id="filter-apply" style="padding:8px 14px;font-size:0.82rem;">Filter</button>
       </div>
 
+      <div id="stats-totals" class="stats-totals"></div>
+
       <div class="stats-section">
         <h3>Score over time</h3>
         <div class="chart-container">
@@ -49,6 +51,13 @@ async function showStats() {
       showToast('Error loading stats.');
       return;
     }
+
+    document.getElementById('stats-totals').innerHTML = `
+      <div class="stats-total-row">
+        <div class="stats-total-pill">${data.articles_finished ?? 0}<span>articles finished</span></div>
+        <div class="stats-total-pill">${data.debates_scored ?? 0}<span>debates scored</span></div>
+      </div>
+    `;
 
     const scores = data.scores_over_time || [];
     const labels = scores.map(s => new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));

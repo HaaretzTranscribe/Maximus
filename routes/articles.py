@@ -85,7 +85,10 @@ def set_status(article_id):
     new_status = body.get("status")
     if new_status not in {"done", "rejected", "in_progress", "not_started"}:
         return jsonify({"error": "invalid status"}), 400
-    get_db().table("articles").update({"status": new_status}).eq("id", article_id).execute()
+    update = {"status": new_status}
+    if new_status == "done":
+        update["current_set"] = False
+    get_db().table("articles").update(update).eq("id", article_id).execute()
     return jsonify({"ok": True})
 
 

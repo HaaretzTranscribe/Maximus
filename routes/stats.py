@@ -79,8 +79,12 @@ def get_stats():
         except Exception:
             error_patterns = []
 
+    done_count = get_db().table("articles").select("id", count="exact").in_("status", ["done", "scored"]).execute()
+
     return jsonify({
         "scores_over_time": scores_over_time,
         "averages_by_section": averages_by_section,
         "error_patterns": error_patterns,
+        "articles_finished": done_count.count or 0,
+        "debates_scored": len(sessions),
     })

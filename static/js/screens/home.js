@@ -96,7 +96,6 @@ function initHome(articles) {
 
   container.querySelectorAll('.card').forEach(card => {
     card.addEventListener('click', () => {
-      if (card.dataset.status === 'done') return;
       Router.go('article', { id: card.dataset.id });
     });
   });
