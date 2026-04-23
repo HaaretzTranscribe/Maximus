@@ -136,13 +136,16 @@ def _extract_article(url: str, sess) -> dict | None:
 
 
 def _already_done_urls() -> set:
-    result = (
-        get_db().table("articles")
-        .select("url,status")
-        .in_("status", ["done", "rejected"])
-        .execute()
-    )
-    return {row["url"] for row in (result.data or [])}
+    """Return URLs that the scraper should never pick: done, rejected, or currently active."""
+    result = get_db().table("articles").select("url,status,current_set").execute()
+    skip = set()
+    for row in (result.data or []):
+        if row["status"] in ("done", "rejected"):
+            skip.add(row["url"])
+        elif row.get("current_set"):
+            # Don't steal an article already on the home screen
+            skip.add(row["url"])
+    return skip
 
 
 def _find_qualifying_article(section: str, skip_urls: set, sess) -> dict | None:

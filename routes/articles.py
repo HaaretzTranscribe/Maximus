@@ -15,7 +15,7 @@ def _slot(section):
 def _current_articles():
     result = get_db().table("articles").select(
         "id,url,section,title,word_count,published_at,status,current_set"
-    ).filter("current_set", "eq", "true").execute()
+    ).filter("current_set", "eq", "true").order("fetched_at", desc=True).execute()
     rows = result.data or []
     cards = {s: None for s in SECTION_ORDER}
     for row in rows:
@@ -59,7 +59,10 @@ def fetch_articles():
             if existing.data:
                 row = existing.data[0]
                 if row["status"] != "done":
-                    get_db().table("articles").update({"current_set": True}).eq("id", row["id"]).execute()
+                    get_db().table("articles").update({
+                        "current_set": True,
+                        "section": article["section"],
+                    }).eq("id", row["id"]).execute()
             else:
                 get_db().table("articles").insert({
                     **article, "current_set": True, "status": "not_started"
