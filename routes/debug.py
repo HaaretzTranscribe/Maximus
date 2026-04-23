@@ -8,45 +8,46 @@ debug_bp = Blueprint("debug", __name__, url_prefix="/api/debug")
 USER_AGENT = "Maximus/1.0 Italian-learning personal tool (amnon.harari@gmail.com)"
 
 
+def _dig(obj, path="", results=None, max_depth=6, depth=0):
+    """Recursively find string fields that look like article body text."""
+    if results is None:
+        results = []
+    if depth > max_depth:
+        return results
+    if isinstance(obj, str) and len(obj.split()) > 50:
+        results.append({"path": path, "word_count": len(obj.split()), "preview": obj[:200]})
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            _dig(v, f"{path}.{k}", results, max_depth, depth + 1)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj[:5]):
+            _dig(v, f"{path}[{i}]", results, max_depth, depth + 1)
+    return results
+
+
 @debug_bp.route("/scrape")
 def test_scrape():
     sess = requests.Session()
     sess.headers["User-Agent"] = USER_AGENT
 
     feed = feedparser.parse("https://www.ilpost.it/mondo/feed/")
-    entries = [e.link for e in feed.entries if hasattr(e, "link")]
-    results = {"rss_entry_count": len(entries), "articles": []}
+    url = feed.entries[1].link if len(feed.entries) > 1 else feed.entries[0].link
 
-    for url in entries[:3]:
-        info = {"url": url}
-        try:
-            resp = sess.get(url, timeout=15)
-            soup = BeautifulSoup(resp.text, "lxml")
+    resp = sess.get(url, timeout=15)
+    soup = BeautifulSoup(resp.text, "lxml")
 
-            # Check for Next.js embedded data
-            next_script = soup.find("script", id="__NEXT_DATA__")
-            if next_script:
-                data = json.loads(next_script.string)
-                info["has_next_data"] = True
-                # Walk the props tree to find article body
-                props = data.get("props", {}).get("pageProps", {})
-                info["pageProps_keys"] = list(props.keys())[:20]
-                # Try common keys
-                for key in ["article", "post", "data", "item", "content"]:
-                    if key in props:
-                        info[f"found_key_{key}"] = str(props[key])[:300]
-            else:
-                info["has_next_data"] = False
+    next_script = soup.find("script", id="__NEXT_DATA__")
+    if not next_script:
+        return jsonify({"error": "No __NEXT_DATA__ found"})
 
-            # Paragraph count from page
-            paras = [p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True).split()) >= 5]
-            info["total_paras"] = len(paras)
-            info["total_words_all_paras"] = len(" ".join(paras).split())
-            info["first_para"] = paras[0] if paras else None
+    data = json.loads(next_script.string)
+    page_props = data.get("props", {}).get("pageProps", {})
 
-        except Exception as e:
-            info["error"] = str(e)
+    # Find all long text fields
+    long_texts = _dig(page_props)
+    long_texts.sort(key=lambda x: x["word_count"], reverse=True)
 
-        results["articles"].append(info)
-
-    return jsonify(results)
+    return jsonify({
+        "url": url,
+        "top_text_fields": long_texts[:10],
+    })
