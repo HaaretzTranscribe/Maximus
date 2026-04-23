@@ -43,6 +43,8 @@ async function showDebate(articleId, article) {
   let audioChunks   = [];
   let isRecording   = false;
   let isThinking    = false;
+  let userTurns     = 0;
+  const MAX_TURNS   = 3;
 
   document.getElementById('article-ref').addEventListener('click', () => {
     Router.go('article', { id: articleId });
@@ -91,6 +93,21 @@ async function showDebate(articleId, article) {
     document.getElementById('thinking')?.remove();
   }
 
+  function lockInput() {
+    sendTextBtn.disabled = true;
+    micBtn.disabled = true;
+    textInput.disabled = true;
+    textInput.placeholder = 'Debate complete.';
+  }
+
+  async function autoEnd() {
+    lockInput();
+    endBtn.textContent = 'Get your score →';
+    endBtn.disabled = false;
+    endBtn.classList.add('btn-primary');
+    endBtn.classList.remove('btn-danger');
+  }
+
   async function sendMessage(userText, mode) {
     if (isThinking) return;
     isThinking = true;
@@ -99,6 +116,7 @@ async function showDebate(articleId, article) {
 
     addBubble('user', userText);
     history.push({ role: 'user', content: userText });
+    userTurns++;
     showThinking();
 
     try {
@@ -108,13 +126,16 @@ async function showDebate(articleId, article) {
       addBubble('assistant', data.assistant_text);
       history.push({ role: 'assistant', content: data.assistant_text });
       if (mode === 'voice') await speakText(data.assistant_text);
+      if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
     } catch (e) {
       hideThinking();
       addBubble('assistant', '[Network error. Please try again.]');
     } finally {
       isThinking = false;
-      sendTextBtn.disabled = false;
-      endBtn.disabled = false;
+      if (userTurns < MAX_TURNS) {
+        sendTextBtn.disabled = false;
+        endBtn.disabled = false;
+      }
     }
   }
 
@@ -175,15 +196,17 @@ async function showDebate(articleId, article) {
             hideThinking();
             addBubble('user', data.user_text);
             history.push({ role: 'user', content: data.user_text });
+            userTurns++;
             addBubble('assistant', data.assistant_text);
             history.push({ role: 'assistant', content: data.assistant_text });
             await speakText(data.assistant_text);
+            if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
           } catch (e) {
             hideThinking();
             addBubble('assistant', '[Error. Please try again.]');
           } finally {
             isThinking = false;
-            endBtn.disabled = false;
+            if (userTurns < MAX_TURNS) endBtn.disabled = false;
           }
         };
         reader.readAsDataURL(blob);
