@@ -100,7 +100,7 @@ async function showArticle(articleId) {
 
   document.getElementById('done-btn').addEventListener('click', async () => {
     await API.articles.setStatus(articleId, 'done');
-    showToast('Article marked done.');
+    showToast('Marked done. Tap "Fetch new articles" to replace this slot.');
     Router.go('home');
   });
 }

@@ -51,13 +51,9 @@ async function showDebate(articleId, article) {
     Router.go('article', { id: articleId });
   });
 
-  let backTapOnce = false;
   document.getElementById('debate-back').addEventListener('click', () => {
-    if (history.length === 0) { Router.go('article', { id: articleId }); return; }
-    if (backTapOnce) { Router.go('article', { id: articleId }); return; }
-    backTapOnce = true;
-    showToast('Tap back again to exit and lose progress.');
-    setTimeout(() => { backTapOnce = false; }, 3000);
+    if (history.length > 0 && !confirm('Exit the debate? Your progress will be lost.')) return;
+    Router.go('article', { id: articleId });
   });
 
   document.getElementById('debate-mode-text').addEventListener('click', () => {
@@ -171,58 +167,63 @@ async function showDebate(articleId, article) {
     textInput.style.height = textInput.scrollHeight + 'px';
   });
 
-  micBtn.addEventListener('click', async () => {
-    if (isRecording) { mediaRecorder?.stop(); return; }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        isRecording = false;
-        micBtn.classList.remove('recording');
-        micBtn.textContent = '🎤 Tap to record';
-        stream.getTracks().forEach(t => t.stop());
+  // Voice mode uses free on-device speech recognition (Web Speech API, it-IT)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-        const blob = new Blob(audioChunks, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64 = reader.result.split(',')[1];
-          if (isThinking) return;
-          isThinking = true;
-          endBtn.disabled = true;
-          showThinking();
-          try {
-            const data = await API.debate.message(articleId, {
-              history: history.slice(),
-              mode: 'voice',
-              audio: base64,
-            });
-            hideThinking();
-            addBubble('user', data.user_text);
-            history.push({ role: 'user', content: data.user_text });
-            userTurns++;
-            addBubble('assistant', data.assistant_text);
-            history.push({ role: 'assistant', content: data.assistant_text });
-            await speakText(data.assistant_text);
-            if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
-          } catch (e) {
-            hideThinking();
-            addBubble('assistant', '[Error. Please try again.]');
-          } finally {
-            isThinking = false;
-            if (userTurns < MAX_TURNS) endBtn.disabled = false;
-          }
-        };
-        reader.readAsDataURL(blob);
-      };
-      mediaRecorder.start();
+  micBtn.addEventListener('click', () => {
+    if (isRecording) return;
+    if (!SpeechRecognition) { showToast('Speech recognition not supported on this browser.'); return; }
+
+    const recog = new SpeechRecognition();
+    recog.lang = 'it-IT';
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+
+    recog.onstart = () => {
       isRecording = true;
       micBtn.classList.add('recording');
-      micBtn.textContent = '⏹ Tap to stop';
-    } catch (e) {
-      showToast('Microphone not available.');
-    }
+      micBtn.textContent = '⏹ Listening…';
+    };
+
+    recog.onresult = async (e) => {
+      const userText = e.results[0][0].transcript.trim();
+      if (!userText) return;
+      userTurns++;
+      if (isThinking) return;
+      isThinking = true;
+      endBtn.disabled = true;
+      addBubble('user', userText);
+      history.push({ role: 'user', content: userText });
+      showThinking();
+      try {
+        const data = await API.debate.message(articleId, {
+          history: history.slice(0, -1),
+          mode: 'voice',
+          content: userText,
+          final_turn: userTurns >= MAX_TURNS,
+        });
+        hideThinking();
+        addBubble('assistant', data.assistant_text);
+        history.push({ role: 'assistant', content: data.assistant_text });
+        await speakText(data.assistant_text);
+        if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
+      } catch (err) {
+        hideThinking();
+        addBubble('assistant', '[Error. Please try again.]');
+      } finally {
+        isThinking = false;
+        if (userTurns < MAX_TURNS) endBtn.disabled = false;
+      }
+    };
+
+    recog.onerror = () => { showToast('Could not hear you. Try again.'); };
+    recog.onend = () => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      micBtn.textContent = '🎤 Tap to record';
+    };
+
+    recog.start();
   });
 
   let endTapOnce = false;

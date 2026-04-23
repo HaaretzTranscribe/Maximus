@@ -135,7 +135,7 @@ def get_tts(article_id):
     chunks = split_chunks(tts_text)
     audio_parts = []
     for chunk in chunks:
-        r = client.audio.speech.create(model="tts-1", voice="alloy", input=chunk)
+        r = client.audio.speech.create(model="tts-1", voice="nova", input=chunk)
         audio_parts.append(r.content)
     audio_bytes = b"".join(audio_parts)
 

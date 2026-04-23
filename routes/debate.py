@@ -183,23 +183,24 @@ def end_debate(article_id):
     feedback = scoring.get("error_explanation_hebrew", "")
     categories = scoring.get("error_categories", {})
 
-    # Store session — errors here must not block the score from reaching the user
+    from datetime import datetime, timezone
+    db_error = None
     try:
-        from datetime import datetime, timezone
         get_db().table("sessions").insert({
             "article_id": article_id,
             "mode": mode,
             "ended_at": datetime.now(timezone.utc).isoformat(),
-            "debate_transcript": transcript,
+            "debate_transcript": json.dumps(transcript),
             "overall_score": score,
             "error_explanation_hebrew": feedback,
-            "error_categories": categories,
+            "error_categories": json.dumps(categories),
         }).execute()
         get_db().table("articles").update({"status": "scored"}).eq("id", article_id).execute()
-    except Exception:
-        pass  # DB write failure must not prevent score from being shown
+    except Exception as e:
+        db_error = str(e)
 
     return jsonify({
         "score": score,
         "error_explanation_hebrew": feedback,
+        "db_error": db_error,
     })
