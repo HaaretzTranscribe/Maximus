@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(where py *)",
+      "Bash(py --version)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}
