@@ -2,9 +2,9 @@ import requests
 import feedparser
 from flask import Blueprint, jsonify
 from bs4 import BeautifulSoup
+from scraper import _extract_body_from_html, _count_words, MIN_WORDS, MAX_WORDS
 
 debug_bp = Blueprint("debug", __name__, url_prefix="/api/debug")
-
 USER_AGENT = "Maximus/1.0 Italian-learning personal tool (amnon.harari@gmail.com)"
 
 
@@ -13,51 +13,36 @@ def test_scrape():
     sess = requests.Session()
     sess.headers["User-Agent"] = USER_AGENT
 
-    results = {}
+    feed = feedparser.parse("https://www.ilpost.it/mondo/feed/")
+    entries = [(e.link, getattr(e, "summary", None)) for e in feed.entries if hasattr(e, "link")]
 
-    # Test RSS
-    rss_url = "https://www.ilpost.it/mondo/feed/"
-    feed = feedparser.parse(rss_url)
-    rss_links = [e.link for e in feed.entries if hasattr(e, "link")]
-    results["rss_entry_count"] = len(rss_links)
-    results["rss_first_links"] = rss_links[:3]
+    results = {
+        "rss_entry_count": len(entries),
+        "articles_tested": [],
+    }
 
-    if not rss_links:
-        return jsonify({"error": "RSS returned no entries", **results})
+    for url, rss_body in entries[:5]:
+        info = {"url": url}
 
-    # Try fetching the first article
-    url = rss_links[0]
-    try:
-        resp = sess.get(url, timeout=15)
-        resp.raise_for_status()
-    except Exception as e:
-        return jsonify({"error": f"Article fetch failed: {e}", **results})
-
-    soup = BeautifulSoup(resp.text, "lxml")
-    results["article_url"] = url
-    results["page_title"] = soup.title.string if soup.title else None
-
-    # Report all div classes found in the page (to identify body container)
-    all_divs = soup.find_all("div", class_=True)
-    classes_found = list(set(
-        c for div in all_divs for c in div.get("class", [])
-    ))[:60]
-    results["div_classes_sample"] = sorted(classes_found)
-
-    # Try each selector
-    selectors_tried = {}
-    for selector in [
-        "div.post-content", "div.article-body", "div.entry-content",
-        "div.content", "div.articolo", "article", "main",
-        "div.post__content", "div.article__body", "div.story__body",
-    ]:
-        el = soup.select_one(selector)
-        if el:
-            paras = el.find_all("p")
-            text = " ".join(p.get_text(strip=True) for p in paras if p.get_text(strip=True))
-            selectors_tried[selector] = {"found": True, "word_count": len(text.split()), "preview": text[:200]}
+        # RSS body word count
+        if rss_body:
+            rss_soup = BeautifulSoup(rss_body, "lxml")
+            rss_text = "\n\n".join(p.get_text(strip=True) for p in rss_soup.find_all("p") if p.get_text(strip=True))
+            info["rss_word_count"] = _count_words(rss_text)
         else:
-            selectors_tried[selector] = {"found": False}
+            info["rss_word_count"] = 0
 
-    results["selectors"] = selectors_tried
+        # Full page word count
+        try:
+            resp = sess.get(url, timeout=15)
+            soup = BeautifulSoup(resp.text, "lxml")
+            body = _extract_body_from_html(soup)
+            info["page_word_count"] = _count_words(body)
+            info["qualifies"] = MIN_WORDS <= _count_words(body) <= MAX_WORDS
+            info["preview"] = body[:200] if body else None
+        except Exception as e:
+            info["page_error"] = str(e)
+
+        results["articles_tested"].append(info)
+
     return jsonify(results)
