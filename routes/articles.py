@@ -89,7 +89,7 @@ def set_status(article_id):
     return jsonify({"ok": True})
 
 
-@articles_bp.route("/<article_id>/tts", methods=["POST"])
+@articles_bp.route("/<article_id>/tts", methods=["GET"])
 def get_tts(article_id):
     import os, io
     from openai import OpenAI
