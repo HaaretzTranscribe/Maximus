@@ -31,7 +31,30 @@ function initHome(articles) {
 
   const container = document.getElementById('article-cards');
 
-  if (!articles || articles.every(a => a === null)) {
+  // Wire up buttons regardless of article state
+  document.getElementById('home-fetch-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('home-fetch-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Fetching…';
+    try {
+      const data = await API.articles.fetch();
+      if (data.message) {
+        showToast(data.message);
+        initHome(await API.articles.current());
+      } else {
+        initHome(data);
+      }
+    } catch (e) {
+      showToast('Error fetching articles. Try again.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '⬇ Fetch new articles';
+    }
+  });
+
+  document.getElementById('home-stats-btn').addEventListener('click', () => Router.go('stats'));
+
+  if (!articles || articles.length === 0 || articles.every(a => a === null)) {
     container.innerHTML = `
       <div class="card-placeholder">No articles yet — tap Fetch to get started.</div>
       <div class="card-placeholder">World slot empty</div>
@@ -78,25 +101,4 @@ function initHome(articles) {
     });
   });
 
-  document.getElementById('home-fetch-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('home-fetch-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Fetching…';
-    try {
-      const data = await API.articles.fetch();
-      if (data.message) {
-        showToast(data.message);
-        initHome(await API.articles.current());
-      } else {
-        initHome(data);
-      }
-    } catch (e) {
-      showToast('Error fetching articles. Try again.');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '⬇ Fetch new articles';
-    }
-  });
-
-  document.getElementById('home-stats-btn').addEventListener('click', () => Router.go('stats'));
 }
