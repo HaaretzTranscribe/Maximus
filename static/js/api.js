@@ -24,8 +24,9 @@ const API = {
   },
 
   debate: {
-    message: (articleId, payload) => API.post(`/api/debate/${articleId}/message`, payload),
-    end:     (articleId, payload) => API.post(`/api/debate/${articleId}/end`, payload),
+    message:   (articleId, payload) => API.post(`/api/debate/${articleId}/message`, payload),
+    end:       (articleId, payload) => API.post(`/api/debate/${articleId}/end`, payload),
+    translate: (word)               => API.post('/api/debate/translate', { word }),
   },
 
   stats: {

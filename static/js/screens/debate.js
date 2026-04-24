@@ -7,6 +7,7 @@ async function showDebate(articleId, article) {
       <div class="screen-header">
         <button class="back-btn" id="debate-back">‹ Back</button>
         <h1>Debate</h1>
+        <button class="btn btn-outline clear-debate-btn" id="clear-debate-btn" title="Start over">↺ Clear</button>
       </div>
 
       <div class="article-ref-collapsed">
@@ -29,14 +30,25 @@ async function showDebate(articleId, article) {
         <button class="btn btn-secondary btn-full hidden" id="mic-btn">🎤 Tap to record</button>
         <button class="btn btn-danger btn-full" id="end-debate-btn">End debate & get score</button>
       </div>
+
+      <div class="translate-widget">
+        <div class="translate-row">
+          <input type="text" id="translate-input" placeholder="English word → Italian" />
+          <button class="btn btn-outline" id="translate-btn">→</button>
+        </div>
+        <div class="translate-result hidden" id="translate-result"></div>
+      </div>
     </div>
   `;
 
-  const conversation = document.getElementById('conversation');
-  const textInput    = document.getElementById('debate-text-input');
-  const sendTextBtn  = document.getElementById('send-text-btn');
-  const micBtn       = document.getElementById('mic-btn');
-  const endBtn       = document.getElementById('end-debate-btn');
+  const conversation   = document.getElementById('conversation');
+  const textInput      = document.getElementById('debate-text-input');
+  const sendTextBtn    = document.getElementById('send-text-btn');
+  const micBtn         = document.getElementById('mic-btn');
+  const endBtn         = document.getElementById('end-debate-btn');
+  const translateInput = document.getElementById('translate-input');
+  const translateBtn   = document.getElementById('translate-btn');
+  const translateResult= document.getElementById('translate-result');
 
   let history     = [];
   let debateMode  = 'text';
@@ -46,14 +58,20 @@ async function showDebate(articleId, article) {
   let isThinking    = false;
   let userTurns     = 0;
   const MAX_TURNS   = 3;
+  const STORAGE_KEY = `debate_${articleId}`;
 
   document.getElementById('article-ref').addEventListener('click', () => {
     Router.go('article', { id: articleId });
   });
 
   document.getElementById('debate-back').addEventListener('click', () => {
-    if (history.length > 0 && !confirm('Exit the debate? Your progress will be lost.')) return;
     Router.go('article', { id: articleId });
+  });
+
+  document.getElementById('clear-debate-btn').addEventListener('click', () => {
+    if (!confirm('Clear this debate and start over?')) return;
+    clearProgress();
+    Router.go('debate', { id: articleId, article });
   });
 
   document.getElementById('debate-mode-text').addEventListener('click', () => {
@@ -94,6 +112,16 @@ async function showDebate(articleId, article) {
     document.getElementById('thinking')?.remove();
   }
 
+  function saveProgress() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ history, userTurns }));
+    } catch (_) {}
+  }
+
+  function clearProgress() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+  }
+
   function lockInput() {
     sendTextBtn.disabled = true;
     micBtn.disabled = true;
@@ -126,6 +154,7 @@ async function showDebate(articleId, article) {
       hideThinking();
       addBubble('assistant', data.assistant_text);
       history.push({ role: 'assistant', content: data.assistant_text });
+      saveProgress();
       if (mode === 'voice') await speakText(data.assistant_text);
       if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
     } catch (e) {
@@ -165,6 +194,30 @@ async function showDebate(articleId, article) {
   textInput.addEventListener('input', () => {
     textInput.style.height = 'auto';
     textInput.style.height = textInput.scrollHeight + 'px';
+  });
+
+  async function doTranslate() {
+    const word = translateInput.value.trim();
+    if (!word) return;
+    translateBtn.disabled = true;
+    translateBtn.textContent = '…';
+    translateResult.classList.add('hidden');
+    try {
+      const data = await API.debate.translate(word);
+      translateResult.textContent = data.italian;
+      translateResult.classList.remove('hidden');
+    } catch (_) {
+      translateResult.textContent = 'Error — try again.';
+      translateResult.classList.remove('hidden');
+    } finally {
+      translateBtn.disabled = false;
+      translateBtn.textContent = '→';
+    }
+  }
+
+  translateBtn.addEventListener('click', doTranslate);
+  translateInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doTranslate(); }
   });
 
   // Voice mode — continuous recognition, manual Send button
@@ -245,6 +298,7 @@ async function showDebate(articleId, article) {
       hideThinking();
       addBubble('assistant', data.assistant_text);
       history.push({ role: 'assistant', content: data.assistant_text });
+      saveProgress();
       await speakText(data.assistant_text);
       if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
     } catch (err) {
@@ -273,6 +327,7 @@ async function showDebate(articleId, article) {
 
     try {
       const result = await API.debate.end(articleId, { transcript: history, mode: debateMode });
+      clearProgress();
       Router.go('score', { score: result.score, feedback: result.error_explanation_hebrew, articleId });
     } catch (e) {
       showToast('Scoring error. Try again.');
@@ -281,21 +336,32 @@ async function showDebate(articleId, article) {
     }
   });
 
-  // Opening message from AI
+  // Restore saved debate or start fresh
   (async () => {
-    showThinking();
-    try {
-      const data = await API.debate.message(articleId, {
-        history: [],
-        mode: 'text',
-        content: `Ciao! Ho letto l'articolo "${article.title}". Sono pronto a discuterne.`,
-      });
-      hideThinking();
-      addBubble('assistant', data.assistant_text);
-      history = [
-        { role: 'user', content: `Ciao! Ho letto l'articolo "${article.title}". Sono pronto a discuterne.` },
-        { role: 'assistant', content: data.assistant_text },
-      ];
-    } catch { hideThinking(); }
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (_) {}
+
+    if (saved && saved.history && saved.history.length > 0) {
+      history = saved.history;
+      userTurns = saved.userTurns || 0;
+      history.forEach(msg => addBubble(msg.role === 'user' ? 'user' : 'assistant', msg.content));
+      if (userTurns >= MAX_TURNS) await autoEnd();
+    } else {
+      showThinking();
+      try {
+        const data = await API.debate.message(articleId, {
+          history: [],
+          mode: 'text',
+          content: `Ciao! Ho letto l'articolo "${article.title}". Sono pronto a discuterne.`,
+        });
+        hideThinking();
+        addBubble('assistant', data.assistant_text);
+        history = [
+          { role: 'user', content: `Ciao! Ho letto l'articolo "${article.title}". Sono pronto a discuterne.` },
+          { role: 'assistant', content: data.assistant_text },
+        ];
+        saveProgress();
+      } catch { hideThinking(); }
+    }
   })();
 }

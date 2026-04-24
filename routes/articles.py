@@ -37,9 +37,18 @@ def _current_articles():
     return [cards[s] for s in SECTION_ORDER]
 
 
+def _past_articles():
+    result = get_db().table("articles").select(
+        "id,url,section,title,word_count,published_at,status,current_set"
+    ).filter("current_set", "eq", "false").in_("status", ["done", "scored"]).order(
+        "fetched_at", desc=True
+    ).limit(20).execute()
+    return result.data or []
+
+
 @articles_bp.route("/current", methods=["GET"])
 def get_current():
-    return jsonify(_current_articles())
+    return jsonify({"current": _current_articles(), "past": _past_articles()})
 
 
 @articles_bp.route("/fetch", methods=["POST"])
@@ -82,7 +91,7 @@ def fetch_articles():
                     **article, "current_set": True, "status": "not_started"
                 }).execute()
 
-        return jsonify(_current_articles())
+        return jsonify({"current": _current_articles(), "past": _past_articles()})
 
     except Exception as e:
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500

@@ -58,6 +58,25 @@ OUTPUT FORMAT (strict JSON):
 Respond ONLY with valid JSON. No preamble, no markdown fences."""
 
 
+@debate_bp.route("/translate", methods=["POST"])
+def translate_word():
+    body = request.get_json()
+    word = (body.get("word") or "").strip()
+    if not word:
+        return jsonify({"error": "word required"}), 400
+    client = _openai()
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{
+            "role": "user",
+            "content": f"Translate the following English word or short phrase to Italian. Reply with ONLY the Italian translation, nothing else: {word}",
+        }],
+        max_tokens=30,
+        temperature=0,
+    )
+    return jsonify({"italian": response.choices[0].message.content.strip()})
+
+
 def _get_article(article_id):
     result = get_db().table("articles").select("*").eq("id", article_id).single().execute()
     return result.data

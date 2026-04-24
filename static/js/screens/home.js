@@ -24,7 +24,11 @@ function renderHome() {
   `;
 }
 
-function initHome(articles) {
+function initHome(data) {
+  // Accept both old array format and new { current, past } format
+  const articles = Array.isArray(data) ? data : (data.current || []);
+  const pastArticles = Array.isArray(data) ? [] : (data.past || []);
+
   const SECTION_LABELS = {
     mondo: 'World', italia: 'Italy', sport: 'Sport',
     scienza: 'Science', tecnologia: 'Technology', cultura: 'Culture',
@@ -54,6 +58,7 @@ function initHome(articles) {
       btn.innerHTML = '⬇ Fetch new articles';
     }
   });
+
 
   document.getElementById('home-stats-btn').addEventListener('click', () => Router.go('stats'));
 
@@ -103,4 +108,32 @@ function initHome(articles) {
     });
   });
 
+  if (pastArticles.length > 0) {
+    const divider = document.createElement('div');
+    divider.className = 'past-divider';
+    divider.textContent = 'Past articles';
+    container.appendChild(divider);
+
+    pastArticles.forEach(article => {
+      const section = SECTION_LABELS[article.section] || article.section;
+      const date = article.published_at
+        ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+        : '';
+      const statusLabel = { scored: `Scored`, done: 'Done' }[article.status] || article.status;
+      const el = document.createElement('div');
+      el.className = 'card card-past';
+      el.dataset.id = article.id;
+      el.innerHTML = `
+        <div class="card-section">${section}</div>
+        <div class="card-title">${article.title}</div>
+        <div class="card-meta">
+          <span>${date}</span>
+          <span>${article.word_count} words</span>
+          <span class="badge badge-${article.status}">${statusLabel}</span>
+        </div>
+      `;
+      el.addEventListener('click', () => Router.go('article', { id: article.id }));
+      container.appendChild(el);
+    });
+  }
 }
