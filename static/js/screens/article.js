@@ -34,9 +34,13 @@ async function showArticle(articleId) {
         </div>
 
         <div class="audio-player" id="audio-player">
-          <audio id="article-audio" controls preload="none">
-            Your browser does not support audio.
-          </audio>
+          <div class="audio-controls-row">
+            <button class="btn btn-outline audio-skip" id="skip-back">−5s</button>
+            <audio id="article-audio" controls preload="none">
+              Your browser does not support audio.
+            </audio>
+            <button class="btn btn-outline audio-skip" id="skip-fwd">+5s</button>
+          </div>
           <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
             <button class="btn btn-outline speed-btn" data-speed="0.75" style="padding:6px 12px;font-size:0.8rem;">0.75×</button>
             <button class="btn btn-outline speed-btn active" data-speed="1" style="padding:6px 12px;font-size:0.8rem;">1×</button>
@@ -79,6 +83,9 @@ async function showArticle(articleId) {
       audioLoaded = true;
     }
   });
+
+  document.getElementById('skip-back').addEventListener('click', () => { audioEl.currentTime = Math.max(0, audioEl.currentTime - 5); });
+  document.getElementById('skip-fwd').addEventListener('click', () => { audioEl.currentTime = Math.min(audioEl.duration || 0, audioEl.currentTime + 5); });
 
   document.querySelectorAll('.speed-btn').forEach(btn => {
     btn.addEventListener('click', () => {

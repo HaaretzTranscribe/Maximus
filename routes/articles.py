@@ -51,17 +51,17 @@ def fetch_articles():
 
         filled = {}
         for row in active:
-            if row["status"] not in ("rejected", "done"):
+            if row["status"] not in ("rejected", "done", "scored"):
                 filled[_slot(row["section"])] = True
 
         slots_needed = [s for s in SECTION_ORDER if s not in filled]
 
         if not slots_needed:
-            return jsonify({"message": "Nothing to replace. Mark articles as rejected or done first."})
+            return jsonify({"message": "All articles are in progress. Mark any as done or rejected to replace them."})
 
-        # Remove rejected and done articles from active set
+        # Remove done/scored/rejected articles from active set before fetching replacements
         for row in active:
-            if row["status"] in ("rejected", "done"):
+            if row["status"] in ("rejected", "done", "scored"):
                 get_db().table("articles").update({"current_set": False}).eq("id", row["id"]).execute()
 
         new_articles = fetch_articles_for_slots(slots_needed)

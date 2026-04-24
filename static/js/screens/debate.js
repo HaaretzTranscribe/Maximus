@@ -167,64 +167,96 @@ async function showDebate(articleId, article) {
     textInput.style.height = textInput.scrollHeight + 'px';
   });
 
-  // Voice mode uses free on-device speech recognition (Web Speech API, it-IT)
+  // Voice mode — continuous recognition, manual Send button
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let activeRecog = null;
+  let liveTranscript = '';
+
+  // Insert send-voice button (hidden by default)
+  const sendVoiceBtn = document.createElement('button');
+  sendVoiceBtn.id = 'send-voice-btn';
+  sendVoiceBtn.className = 'btn btn-primary btn-full hidden';
+  sendVoiceBtn.textContent = '✓ Send answer';
+  micBtn.parentElement.insertBefore(sendVoiceBtn, micBtn.nextSibling);
 
   micBtn.addEventListener('click', () => {
-    if (isRecording) return;
+    if (isRecording || isThinking) return;
     if (!SpeechRecognition) { showToast('Speech recognition not supported on this browser.'); return; }
 
+    liveTranscript = '';
     const recog = new SpeechRecognition();
+    activeRecog = recog;
     recog.lang = 'it-IT';
-    recog.interimResults = false;
-    recog.maxAlternatives = 1;
+    recog.continuous = true;
+    recog.interimResults = true;
 
     recog.onstart = () => {
       isRecording = true;
       micBtn.classList.add('recording');
-      micBtn.textContent = '⏹ Listening…';
+      micBtn.textContent = '🔴 Recording…';
+      sendVoiceBtn.classList.remove('hidden');
+      endBtn.classList.add('hidden');
     };
 
-    recog.onresult = async (e) => {
-      const userText = e.results[0][0].transcript.trim();
-      if (!userText) return;
-      userTurns++;
-      if (isThinking) return;
-      isThinking = true;
-      endBtn.disabled = true;
-      addBubble('user', userText);
-      history.push({ role: 'user', content: userText });
-      showThinking();
-      try {
-        const data = await API.debate.message(articleId, {
-          history: history.slice(0, -1),
-          mode: 'voice',
-          content: userText,
-          final_turn: userTurns >= MAX_TURNS,
-        });
-        hideThinking();
-        addBubble('assistant', data.assistant_text);
-        history.push({ role: 'assistant', content: data.assistant_text });
-        await speakText(data.assistant_text);
-        if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
-      } catch (err) {
-        hideThinking();
-        addBubble('assistant', '[Error. Please try again.]');
-      } finally {
-        isThinking = false;
-        if (userTurns < MAX_TURNS) endBtn.disabled = false;
+    recog.onresult = (e) => {
+      let interim = '';
+      liveTranscript = '';
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) liveTranscript += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
       }
+      micBtn.textContent = `🔴 ${liveTranscript || interim || '…'}`;
     };
 
-    recog.onerror = () => { showToast('Could not hear you. Try again.'); };
+    recog.onerror = (e) => {
+      if (e.error !== 'no-speech') showToast('Recognition error. Try again.');
+    };
+
     recog.onend = () => {
       isRecording = false;
+      activeRecog = null;
       micBtn.classList.remove('recording');
       micBtn.textContent = '🎤 Tap to record';
+      sendVoiceBtn.classList.add('hidden');
+      endBtn.classList.remove('hidden');
     };
 
     recog.start();
   });
+
+  async function submitVoice() {
+    if (activeRecog) { activeRecog.stop(); activeRecog = null; }
+    const userText = liveTranscript.trim();
+    if (!userText) { showToast('Nothing recorded.'); return; }
+
+    userTurns++;
+    isThinking = true;
+    endBtn.disabled = true;
+    addBubble('user', userText);
+    history.push({ role: 'user', content: userText });
+    showThinking();
+    try {
+      const data = await API.debate.message(articleId, {
+        history: history.slice(0, -1),
+        mode: 'voice',
+        content: userText,
+        final_turn: userTurns >= MAX_TURNS,
+      });
+      hideThinking();
+      addBubble('assistant', data.assistant_text);
+      history.push({ role: 'assistant', content: data.assistant_text });
+      await speakText(data.assistant_text);
+      if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
+    } catch (err) {
+      hideThinking();
+      addBubble('assistant', '[Error. Please try again.]');
+    } finally {
+      isThinking = false;
+      if (userTurns < MAX_TURNS) endBtn.disabled = false;
+    }
+  }
+
+  sendVoiceBtn.addEventListener('click', submitVoice);
 
   let endTapOnce = false;
   endBtn.addEventListener('click', async () => {

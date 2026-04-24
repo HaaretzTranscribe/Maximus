@@ -190,10 +190,10 @@ def end_debate(article_id):
             "article_id": article_id,
             "mode": mode,
             "ended_at": datetime.now(timezone.utc).isoformat(),
-            "debate_transcript": json.dumps(transcript),
+            "debate_transcript": transcript,
             "overall_score": score,
             "error_explanation_hebrew": feedback,
-            "error_categories": json.dumps(categories),
+            "error_categories": categories,
         }).execute()
         get_db().table("articles").update({"status": "scored"}).eq("id", article_id).execute()
     except Exception as e:
