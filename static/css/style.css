@@ -134,6 +134,16 @@ html, body {
   color: var(--text);
   flex: 1;
 }
+.app-version {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  margin-left: -4px;
+  align-self: flex-end;
+  margin-bottom: 4px;
+}
+
 .refresh-btn {
   background: none;
   border: 2px solid var(--border);
