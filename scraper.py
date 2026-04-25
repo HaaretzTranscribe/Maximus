@@ -149,15 +149,25 @@ def _already_done_urls() -> set:
 
 
 def _find_qualifying_article(section: str, skip_urls: set, sess) -> dict | None:
+    # Build candidate list: RSS first, then HTML (deduplicated)
+    rss_urls = []
     try:
-        urls = _get_rss_urls(section)
+        rss_urls = _get_rss_urls(section)
     except Exception:
-        urls = []
-    if not urls:
-        try:
-            urls = _get_html_urls(section, sess)
-        except Exception:
-            return None
+        pass
+
+    html_urls = []
+    try:
+        html_urls = _get_html_urls(section, sess)
+    except Exception:
+        pass
+
+    seen = set()
+    urls = []
+    for u in rss_urls + html_urls:
+        if u not in seen:
+            seen.add(u)
+            urls.append(u)
 
     for url in urls:
         if url in skip_urls:
@@ -165,9 +175,7 @@ def _find_qualifying_article(section: str, skip_urls: set, sess) -> dict | None:
 
         cached = get_db().table("articles").select("*").eq("url", url).execute()
         if cached.data:
-            row = cached.data[0]
-            if MIN_WORDS <= row["word_count"] <= MAX_WORDS:
-                return row
+            # Already in DB — skip (caller passes all known URLs in skip_urls)
             skip_urls.add(url)
             continue
 
