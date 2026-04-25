@@ -222,13 +222,15 @@ def fetch_articles_for_slots(slots: list, extra_skip_urls: set = None) -> list:
                 article["section"] = slot
                 results.append(article)
         elif slot == "scienza":
-            article = None
+            candidates = []
             for sec in FOURTH_SLOT_SECTIONS:
                 article = _find_qualifying_article(sec, skip_urls, sess)
                 if article:
                     article["section"] = sec
-                    break
-            if article:
-                results.append(article)
+                    candidates.append(article)
+            if candidates:
+                # Pick whichever section had the newest qualifying article
+                best = max(candidates, key=lambda a: a.get("published_at") or "")
+                results.append(best)
 
     return results

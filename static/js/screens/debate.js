@@ -157,6 +157,7 @@ async function showDebate(articleId, article) {
     } catch (e) {
       hideThinking();
       addBubble('assistant', '[Network error. Please try again.]');
+      if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
     } finally {
       isThinking = false;
       if (userTurns < MAX_TURNS) {
