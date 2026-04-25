@@ -104,22 +104,26 @@ async function showArticle(articleId) {
     ttsError.classList.remove('hidden');
   }
 
-  function loadAudio() {
+  async function loadAudio() {
     showTtsLoading();
     audioEl = document.getElementById('article-audio');
-    audioEl.src = API.articles.ttsUrl(articleId);
-    audioEl.load(); // Force iOS to start fetching immediately
 
-    const onReady = () => {
-      audioEl.removeEventListener('canplay', onReady);
-      audioEl.removeEventListener('loadeddata', onReady);
+    const timeout = setTimeout(() => {
+      ttsLoadingMsg.textContent = 'Still generating… (long articles can take ~30s)';
+    }, 8000);
+
+    try {
+      const resp = await fetch(API.articles.ttsUrl(articleId));
+      clearTimeout(timeout);
+      if (!resp.ok) throw new Error(resp.status);
+      const blob = await resp.blob();
+      audioEl.src = URL.createObjectURL(blob);
       showTtsControls();
-    };
-    audioEl.addEventListener('canplay', onReady);
-    audioEl.addEventListener('loadeddata', onReady);
-    audioEl.addEventListener('error', showTtsError, { once: true });
-
-    setupHighlight(audioEl);
+      setupHighlight(audioEl);
+    } catch (e) {
+      clearTimeout(timeout);
+      showTtsError();
+    }
   }
 
   document.getElementById('mode-read').addEventListener('click', () => {

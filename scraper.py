@@ -47,16 +47,32 @@ def _get_rss_urls(section: str) -> list:
     return [e.link for e in feed.entries if hasattr(e, "link")]
 
 
-def _get_html_urls(section: str, sess) -> list:
-    time.sleep(THROTTLE)
-    resp = sess.get(SECTION_URLS[section], timeout=15)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "lxml")
+def _get_html_urls(section: str, sess, max_pages: int = 8) -> list:
     seen = []
-    for a in soup.select("a[href]"):
-        href = a["href"]
-        if href.startswith("https://www.ilpost.it/") and href.count("/") >= 5 and href not in seen:
-            seen.append(href)
+    seen_set = set()
+    base = SECTION_URLS[section].rstrip("/")
+    pages = [f"{base}/"] + [f"{base}/page/{i}/" for i in range(2, max_pages + 1)]
+    for page_url in pages:
+        try:
+            time.sleep(THROTTLE)
+            resp = sess.get(page_url, timeout=15)
+            if resp.status_code == 404:
+                break
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "lxml")
+            found_any = False
+            for a in soup.select("a[href]"):
+                href = a["href"]
+                if (href.startswith("https://www.ilpost.it/")
+                        and href.count("/") >= 5
+                        and href not in seen_set):
+                    seen_set.add(href)
+                    seen.append(href)
+                    found_any = True
+            if not found_any:
+                break
+        except Exception:
+            break
     return seen
 
 
