@@ -47,15 +47,14 @@ def _get_rss_urls(section: str) -> list:
     return [e.link for e in feed.entries if hasattr(e, "link")]
 
 
-def _get_html_urls(section: str, sess, max_pages: int = 8) -> list:
+def _get_html_urls(section: str, sess, max_pages: int = 5) -> list:
     seen = []
     seen_set = set()
     base = SECTION_URLS[section].rstrip("/")
     pages = [f"{base}/"] + [f"{base}/page/{i}/" for i in range(2, max_pages + 1)]
     for page_url in pages:
         try:
-            time.sleep(THROTTLE)
-            resp = sess.get(page_url, timeout=15)
+            resp = sess.get(page_url, timeout=15)  # no sleep here — only sleep on article extraction
             if resp.status_code == 404:
                 break
             resp.raise_for_status()
@@ -110,7 +109,7 @@ def _extract_article(url: str, sess) -> dict | None:
                     tag.decompose()
                 for tag in content_soup.find_all(id=re.compile(r"audio|player|ad", re.I)):
                     tag.decompose()
-                paras = [p.get_text(strip=True) for p in content_soup.find_all("p")
+                paras = [p.get_text(separator=" ", strip=True) for p in content_soup.find_all("p")
                          if p.get_text(strip=True)]
                 body = "\n\n".join(paras)
                 if body:
@@ -137,7 +136,7 @@ def _extract_article(url: str, sess) -> dict | None:
     time_tag = soup.find("time")
     pub_date = time_tag["datetime"] if time_tag and time_tag.get("datetime") else None
 
-    paras = [p.get_text(strip=True) for p in container.find_all("p") if p.get_text(strip=True)]
+    paras = [p.get_text(separator=" ", strip=True) for p in container.find_all("p") if p.get_text(strip=True)]
     body = "\n\n".join(paras)
     if not body:
         return None
