@@ -163,8 +163,14 @@ def _already_done_urls() -> set:
     return skip
 
 
+def _url_date(url: str) -> str:
+    """Extract YYYY/MM/DD from ilpost.it URLs for sorting newest-first."""
+    m = re.search(r'/(\d{4}/\d{2}/\d{2})/', url)
+    return m.group(1) if m else "0000/00/00"
+
+
 def _find_qualifying_article(section: str, skip_urls: set, sess) -> dict | None:
-    # Build candidate list: RSS first, then HTML (deduplicated)
+    # Build candidate list: RSS + HTML, deduplicated, sorted newest-first by URL date
     rss_urls = []
     try:
         rss_urls = _get_rss_urls(section)
@@ -183,6 +189,8 @@ def _find_qualifying_article(section: str, skip_urls: set, sess) -> dict | None:
         if u not in seen:
             seen.add(u)
             urls.append(u)
+
+    urls.sort(key=_url_date, reverse=True)
 
     for url in urls:
         if url in skip_urls:
