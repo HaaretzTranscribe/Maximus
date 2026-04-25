@@ -40,27 +40,33 @@ def _current_articles():
 def _past_articles():
     result = get_db().table("articles").select(
         "id,url,section,title,word_count,published_at,status,current_set"
-    ).filter("current_set", "eq", "false").filter("status", "neq", "rejected").order(
-        "fetched_at", desc=True
-    ).limit(30).execute()
+    ).filter("current_set", "eq", "false").in_(
+        "status", ["not_started", "in_progress", "done", "scored"]
+    ).order("fetched_at", desc=True).limit(30).execute()
     return result.data or []
 
 
 @articles_bp.route("/current", methods=["GET"])
 def get_current():
-    return jsonify({"current": _current_articles(), "past": _past_articles()})
+    try:
+        current = _current_articles()
+    except Exception as e:
+        current = []
+    try:
+        past = _past_articles()
+    except Exception as e:
+        past = []
+    return jsonify({"current": current, "past": past})
 
 
 @articles_bp.route("/fetch", methods=["POST"])
 def fetch_articles():
+    active_ids = []
     try:
-        # Always fetch all 4 slots — move everything to past first
         active = get_db().table("articles").select(
             "id,url,section,status,current_set"
         ).filter("current_set", "eq", "true").execute().data or []
-
-        for row in active:
-            get_db().table("articles").update({"current_set": False}).eq("id", row["id"]).execute()
+        active_ids = [row["id"] for row in active]
 
         # Skip every URL already in the DB — only truly new articles qualify
         all_known = get_db().table("articles").select("url").execute()
@@ -70,6 +76,10 @@ def fetch_articles():
         new_articles = fetch_articles_for_slots(slots_needed, extra_skip_urls=all_known_urls)
         if not new_articles:
             return jsonify({"error": "Could not find qualifying articles. Try again."}), 500
+
+        # Scraper succeeded — now move old articles to past
+        for row in active:
+            get_db().table("articles").update({"current_set": False}).eq("id", row["id"]).execute()
 
         for article in new_articles:
             existing = get_db().table("articles").select("id,status").eq("url", article["url"]).execute()
@@ -88,6 +98,12 @@ def fetch_articles():
         return jsonify({"current": _current_articles(), "past": _past_articles()})
 
     except Exception as e:
+        # Restore active articles if something went wrong mid-fetch
+        for aid in active_ids:
+            try:
+                get_db().table("articles").update({"current_set": True}).eq("id", aid).execute()
+            except Exception:
+                pass
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 
