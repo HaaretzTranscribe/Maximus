@@ -40,7 +40,7 @@ def _current_articles():
 def _past_articles():
     result = get_db().table("articles").select(
         "id,url,section,title,word_count,published_at,status,current_set"
-    ).filter("current_set", "eq", "false").in_("status", ["done", "scored"]).order(
+    ).filter("current_set", "eq", "false").neq("status", "rejected").order(
         "fetched_at", desc=True
     ).limit(20).execute()
     return result.data or []

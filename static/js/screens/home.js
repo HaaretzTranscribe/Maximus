@@ -4,7 +4,7 @@ function renderHome() {
       <div class="app-logo">
         <div class="logo-icon">🏛️</div>
         <h1>Maximus</h1>
-        <span class="app-version">v0.9</span>
+        <span class="app-version">v1.0</span>
         <button id="home-refresh-btn" class="refresh-btn" title="Refresh">↺</button>
       </div>
 

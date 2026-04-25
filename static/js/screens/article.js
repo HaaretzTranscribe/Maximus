@@ -42,7 +42,7 @@ async function showArticle(articleId) {
           <div id="tts-controls" class="hidden">
             <div class="audio-controls-row">
               <button class="btn btn-outline audio-skip" id="skip-back">−5s</button>
-              <audio id="article-audio" controls preload="none">
+              <audio id="article-audio" controls preload="auto">
                 Your browser does not support audio.
               </audio>
               <button class="btn btn-outline audio-skip" id="skip-fwd">+5s</button>
@@ -108,11 +108,17 @@ async function showArticle(articleId) {
     showTtsLoading();
     audioEl = document.getElementById('article-audio');
     audioEl.src = API.articles.ttsUrl(articleId);
+    audioEl.load(); // Force iOS to start fetching immediately
 
-    audioEl.addEventListener('canplay', showTtsControls, { once: true });
+    const onReady = () => {
+      audioEl.removeEventListener('canplay', onReady);
+      audioEl.removeEventListener('loadeddata', onReady);
+      showTtsControls();
+    };
+    audioEl.addEventListener('canplay', onReady);
+    audioEl.addEventListener('loadeddata', onReady);
     audioEl.addEventListener('error', showTtsError, { once: true });
 
-    // Sentence highlight
     setupHighlight(audioEl);
   }
 
