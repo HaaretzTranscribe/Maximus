@@ -59,14 +59,15 @@ def fetch_articles():
             "id,url,section,status,current_set"
         ).filter("current_set", "eq", "true").execute().data or []
 
-        # Collect displaced URLs so the scraper doesn't just return the same articles
-        displaced_urls = {row["url"] for row in active}
-
         for row in active:
             get_db().table("articles").update({"current_set": False}).eq("id", row["id"]).execute()
 
+        # Skip every URL already in the DB — only truly new articles qualify
+        all_known = get_db().table("articles").select("url").execute()
+        all_known_urls = {row["url"] for row in (all_known.data or [])}
+
         slots_needed = list(SECTION_ORDER)
-        new_articles = fetch_articles_for_slots(slots_needed, extra_skip_urls=displaced_urls)
+        new_articles = fetch_articles_for_slots(slots_needed, extra_skip_urls=all_known_urls)
         if not new_articles:
             return jsonify({"error": "Could not find qualifying articles. Try again."}), 500
 
