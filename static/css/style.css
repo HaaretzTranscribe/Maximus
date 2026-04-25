@@ -395,13 +395,33 @@ html, body {
   line-height: 1.8;
   color: var(--text);
   white-space: pre-wrap;
+  /* Critical for iOS native Look Up / Translate / Share */
   user-select: text;
   -webkit-user-select: text;
+  -webkit-touch-callout: default;
+  cursor: text;
   margin-bottom: 24px;
   font-weight: 400;
 }
-.audio-sentence { border-radius: 4px; transition: background 0.3s; }
-.audio-active   { background: var(--yellow-light); }
+/* Spans must not block iOS selection — no pointer-events override, no transitions */
+.audio-sentence {
+  border-radius: 3px;
+  display: inline;
+}
+.audio-active { background: #fff3a3; }
+
+/* TTS loading / error states */
+.tts-loading, .tts-error {
+  padding: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.tts-error { color: var(--red); }
 
 .article-actions {
   display: flex;

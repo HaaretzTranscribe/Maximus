@@ -185,9 +185,11 @@ def _find_qualifying_article(section: str, skip_urls: set, sess) -> dict | None:
     return None
 
 
-def fetch_articles_for_slots(slots: list) -> list:
+def fetch_articles_for_slots(slots: list, extra_skip_urls: set = None) -> list:
     sess = _session()
     skip_urls = _already_done_urls()
+    if extra_skip_urls:
+        skip_urls.update(extra_skip_urls)
     results = []
 
     for slot in slots:
