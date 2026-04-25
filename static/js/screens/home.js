@@ -4,8 +4,8 @@ function renderHome() {
       <div class="app-logo">
         <div class="logo-icon">🏛️</div>
         <h1>Maximus</h1>
-        <span class="app-version">v1.5</span>
-        <button id="home-refresh-btn" class="refresh-btn" title="Refresh">↺</button>
+        <span class="app-version">v1.6</span>
+        <button id="home-stats-btn" class="refresh-btn" title="My stats">📊</button>
       </div>
 
       <div id="install-hint" class="install-hint hidden">
@@ -17,10 +17,6 @@ function renderHome() {
       </button>
 
       <div id="article-cards"></div>
-
-      <div class="mt-auto" style="padding-top:16px;">
-        <button id="home-stats-btn" class="btn btn-outline btn-full">📊 My stats</button>
-      </div>
     </div>
   `;
 }
@@ -38,7 +34,7 @@ function initHome(data) {
   const container = document.getElementById('article-cards');
 
   // Wire up buttons regardless of article state
-  document.getElementById('home-refresh-btn').addEventListener('click', () => location.reload());
+  document.getElementById('home-stats-btn').addEventListener('click', () => Router.go('stats'));
 
   document.getElementById('home-fetch-btn').addEventListener('click', async () => {
     const btn = document.getElementById('home-fetch-btn');

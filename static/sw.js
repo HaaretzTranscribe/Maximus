@@ -1,4 +1,4 @@
-const CACHE = 'maximus-v15';
+const CACHE = 'maximus-v16';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
