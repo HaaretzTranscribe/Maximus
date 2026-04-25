@@ -124,10 +124,10 @@ def send_message(article_id):
     if article["status"] == "not_started":
         get_db().table("articles").update({"status": "in_progress"}).eq("id", article_id).execute()
 
-    system_msg = DEBATE_SYSTEM.format(
-        article_title=article["title"].replace("{", "{{").replace("}", "}}"),
-        article_section=article["section"].replace("{", "{{").replace("}", "}}"),
-        article_body=article["body"].replace("{", "{{").replace("}", "}}"),
+    system_msg = (DEBATE_SYSTEM
+        .replace("{article_title}", article["title"])
+        .replace("{article_section}", article["section"])
+        .replace("{article_body}", article["body"])
     )
 
     messages = [{"role": "system", "content": system_msg}]
@@ -171,17 +171,13 @@ def end_debate(article_id):
     body_words = article["body"].split()
     excerpt = " ".join(body_words[:500])
 
-    # Escape any { } in user content so .format() doesn't choke
-    safe_title   = article["title"].replace("{", "{{").replace("}", "}}")
-    safe_section = article["section"].replace("{", "{{").replace("}", "}}")
-    safe_excerpt = excerpt.replace("{", "{{").replace("}", "}}")
-    safe_transcript = transcript_str.replace("{", "{{").replace("}", "}}")
-
-    scoring_prompt = SCORING_PROMPT.format(
-        article_title=safe_title,
-        article_section=safe_section,
-        article_body_excerpt=safe_excerpt,
-        transcript=safe_transcript,
+    # Use str.replace instead of .format() — the prompt contains literal { }
+    # in the JSON example which would cause KeyError with .format()
+    scoring_prompt = (SCORING_PROMPT
+        .replace("{article_title}", article["title"])
+        .replace("{article_section}", article["section"])
+        .replace("{article_body_excerpt}", excerpt)
+        .replace("{transcript}", transcript_str)
     )
 
     try:
