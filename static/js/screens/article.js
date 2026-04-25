@@ -13,9 +13,8 @@ async function showArticle(articleId) {
 
   app.innerHTML = `
     <div id="screen-article" class="screen active">
-      <div class="screen-header">
+      <div class="screen-header article-screen-header">
         <button class="back-btn" id="article-back">‹ Back</button>
-        <h1>Article</h1>
       </div>
 
       <div class="article-sticky-header">
@@ -50,7 +49,7 @@ async function showArticle(articleId) {
       </div>
 
       <!-- Native selectable HTML — iOS Look Up works here -->
-      <div class="article-body" id="article-body">${escapeHtml(article.body)}</div>
+      <div class="article-body" id="article-body">${buildSentenceSpans(article.body)}</div>
 
       <div class="article-actions">
         <button class="btn btn-primary btn-full" id="start-debate-btn">💬 Start debate</button>
@@ -72,6 +71,7 @@ async function showArticle(articleId) {
     document.getElementById('mode-read').classList.add('active');
     document.getElementById('mode-listen').classList.remove('active');
     audioPlayer.classList.remove('visible');
+    clearSentenceHighlight();
   });
 
   document.getElementById('mode-listen').addEventListener('click', async () => {
@@ -95,6 +95,31 @@ async function showArticle(articleId) {
     });
   });
 
+  // Sentence highlight tracking
+  const sentenceEls = document.querySelectorAll('.audio-sentence');
+  const numSentences = sentenceEls.length;
+  let lastIdx = -1;
+
+  function clearSentenceHighlight() {
+    sentenceEls.forEach(el => el.classList.remove('audio-active'));
+    lastIdx = -1;
+  }
+
+  audioEl.addEventListener('timeupdate', () => {
+    if (!audioEl.duration || !numSentences) return;
+    const pct = audioEl.currentTime / audioEl.duration;
+    const idx = Math.min(Math.floor(pct * numSentences), numSentences - 1);
+    if (idx === lastIdx) return;
+    lastIdx = idx;
+    sentenceEls.forEach((el, i) => el.classList.toggle('audio-active', i === idx));
+    sentenceEls[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  audioEl.addEventListener('ended', clearSentenceHighlight);
+  audioEl.addEventListener('pause', () => {
+    // keep highlight on pause, clear only on explicit read-mode switch
+  });
+
   document.getElementById('start-debate-btn').addEventListener('click', () => {
     Router.go('debate', { id: articleId, article });
   });
@@ -107,9 +132,17 @@ async function showArticle(articleId) {
 
   document.getElementById('done-btn').addEventListener('click', async () => {
     await API.articles.setStatus(articleId, 'done');
-    showToast('Marked done. Tap "Fetch new articles" to replace this slot.');
+    showToast('Marked done.');
     Router.go('home');
   });
+}
+
+function buildSentenceSpans(text) {
+  // Split on sentence-ending punctuation followed by whitespace
+  const sentences = text.split(/(?<=[.!?»])\s+/);
+  return sentences.map((s, i) =>
+    `<span class="audio-sentence" id="s-${i}">${escapeHtml(s)}</span>`
+  ).join(' ');
 }
 
 function escapeHtml(str) {

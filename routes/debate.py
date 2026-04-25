@@ -171,32 +171,36 @@ def end_debate(article_id):
     body_words = article["body"].split()
     excerpt = " ".join(body_words[:500])
 
-    scoring_prompt = SCORING_PROMPT.format(
-        article_title=article["title"],
-        article_section=article["section"],
-        article_body_excerpt=excerpt,
-        transcript=transcript_str,
-    )
+    # Escape any { } in user content so .format() doesn't choke
+    safe_title   = article["title"].replace("{", "{{").replace("}", "}}")
+    safe_section = article["section"].replace("{", "{{").replace("}", "}}")
+    safe_excerpt = excerpt.replace("{", "{{").replace("}", "}}")
+    safe_transcript = transcript_str.replace("{", "{{").replace("}", "}}")
 
-    client = _openai()
-    scoring_response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": scoring_prompt}],
-        temperature=0.2,
-        response_format={"type": "json_object"},
+    scoring_prompt = SCORING_PROMPT.format(
+        article_title=safe_title,
+        article_section=safe_section,
+        article_body_excerpt=safe_excerpt,
+        transcript=safe_transcript,
     )
-    raw = scoring_response.choices[0].message.content.strip()
-    # Strip markdown fences GPT sometimes adds despite instructions
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
 
     try:
+        client = _openai()
+        scoring_response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": scoring_prompt}],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+        )
+        raw = scoring_response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
         scoring = json.loads(raw)
-    except json.JSONDecodeError:
-        return jsonify({"error": "Scoring returned invalid JSON", "raw": raw}), 500
+    except Exception as e:
+        return jsonify({"error": f"Scoring failed: {str(e)}"}), 500
 
     score = scoring.get("overall_score", 0)
     feedback = scoring.get("error_explanation_hebrew", "")

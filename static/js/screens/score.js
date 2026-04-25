@@ -26,8 +26,9 @@ function showScore({ score, feedback, articleId }) {
   document.getElementById('score-home-btn').addEventListener('click', () => Router.go('home'));
 
   document.getElementById('score-next-btn').addEventListener('click', async () => {
-    const articles = await API.articles.current();
-    const next = articles.find(a => a && !['done', 'rejected', 'scored'].includes(a.status) && a.id !== articleId);
+    const data = await API.articles.current();
+    const current = Array.isArray(data) ? data : (data.current || []);
+    const next = current.find(a => a && !['done', 'rejected', 'scored'].includes(a.status) && a.id !== articleId);
     if (next) {
       Router.go('article', { id: next.id });
     } else {

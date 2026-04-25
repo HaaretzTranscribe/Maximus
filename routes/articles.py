@@ -54,25 +54,15 @@ def get_current():
 @articles_bp.route("/fetch", methods=["POST"])
 def fetch_articles():
     try:
+        # Always fetch all 4 slots — move everything to past first
         active = get_db().table("articles").select(
             "id,section,status,current_set"
         ).filter("current_set", "eq", "true").execute().data or []
 
-        filled = {}
         for row in active:
-            if row["status"] not in ("rejected", "done", "scored"):
-                filled[_slot(row["section"])] = True
+            get_db().table("articles").update({"current_set": False}).eq("id", row["id"]).execute()
 
-        slots_needed = [s for s in SECTION_ORDER if s not in filled]
-
-        if not slots_needed:
-            return jsonify({"message": "All articles are in progress. Mark any as done or rejected to replace them."})
-
-        # Remove done/scored/rejected articles from active set before fetching replacements
-        for row in active:
-            if row["status"] in ("rejected", "done", "scored"):
-                get_db().table("articles").update({"current_set": False}).eq("id", row["id"]).execute()
-
+        slots_needed = list(SECTION_ORDER)
         new_articles = fetch_articles_for_slots(slots_needed)
         if not new_articles:
             return jsonify({"error": "Could not find qualifying articles. Try again."}), 500
@@ -150,9 +140,13 @@ def get_tts(article_id):
             chunks.append(text)
         return chunks
 
+    import hashlib
+    _voices = ["alloy", "echo", "fable", "nova", "onyx", "shimmer"]
+    voice = _voices[int(hashlib.md5(article_id.encode()).hexdigest(), 16) % len(_voices)]
+
     audio_parts = []
     for chunk in split_chunks(tts_text):
-        r = client.audio.speech.create(model="tts-1", voice="nova", input=chunk)
+        r = client.audio.speech.create(model="tts-1", voice=voice, input=chunk)
         audio_parts.append(r.content)
     audio_bytes = b"".join(audio_parts)
 

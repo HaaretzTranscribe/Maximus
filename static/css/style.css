@@ -60,9 +60,17 @@ html, body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 20px 16px;
+  padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)) 16px;
 }
 .screen.active { display: flex; }
+
+/* Debate screen overrides: conversation scrolls internally */
+#screen-debate {
+  overflow: hidden;
+  padding-bottom: 0;
+  padding-left: 16px;
+  padding-right: 16px;
+}
 
 /* ── Header ── */
 .screen-header {
@@ -73,15 +81,19 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: -20px -16px 24px;
-  padding: 20px 16px 0;
+  margin: -20px -16px 16px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-/* Article screen: back/title header scrolls away — only meta+audio sticks */
-#screen-article .screen-header {
-  position: static;
-  margin: 0 0 24px;
-  padding: 0;
+/* Article screen: back header scrolls away — only sticky meta+audio stays */
+.article-screen-header {
+  position: static !important;
+  margin: 0 0 8px !important;
+  padding: 8px 0 0 !important;
+  border-bottom: none !important;
+  background: transparent !important;
 }
 .screen-header h1 {
   font-size: 1.6rem;
@@ -378,6 +390,8 @@ html, body {
   margin-bottom: 24px;
   font-weight: 400;
 }
+.audio-sentence { border-radius: 4px; transition: background 0.3s; }
+.audio-active   { background: var(--yellow-light); }
 
 .article-actions {
   display: flex;
@@ -468,8 +482,19 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 10px;
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
   border-top: 2px solid var(--border);
+  flex-shrink: 0;
+}
+
+.dictation-hint {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--blue-dark);
+  background: var(--blue-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  text-align: center;
 }
 
 #debate-text-row {

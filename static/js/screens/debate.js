@@ -16,8 +16,8 @@ async function showDebate(articleId, article) {
       </div>
 
       <div class="mode-toggle">
-        <button class="btn active" id="debate-mode-text">⌨️ Text</button>
-        <button class="btn" id="debate-mode-voice">🎤 Voice</button>
+        <button class="btn active" id="debate-mode-text">⌨️ Type</button>
+        <button class="btn" id="debate-mode-voice">🎤 Dictate</button>
       </div>
 
       <div class="conversation" id="conversation"></div>
@@ -27,7 +27,7 @@ async function showDebate(articleId, article) {
           <textarea id="debate-text-input" rows="1" placeholder="Write in Italian…"></textarea>
           <button class="btn btn-primary" id="send-text-btn">➤</button>
         </div>
-        <button class="btn btn-secondary btn-full hidden" id="mic-btn">🎤 Tap to record</button>
+        <div class="dictation-hint hidden" id="dictation-hint">🎤 Tap the mic key on your keyboard to dictate</div>
         <button class="btn btn-danger btn-full" id="end-debate-btn">End debate & get score</button>
       </div>
 
@@ -44,19 +44,16 @@ async function showDebate(articleId, article) {
   const conversation   = document.getElementById('conversation');
   const textInput      = document.getElementById('debate-text-input');
   const sendTextBtn    = document.getElementById('send-text-btn');
-  const micBtn         = document.getElementById('mic-btn');
+  const dictationHint  = document.getElementById('dictation-hint');
   const endBtn         = document.getElementById('end-debate-btn');
   const translateInput = document.getElementById('translate-input');
   const translateBtn   = document.getElementById('translate-btn');
   const translateResult= document.getElementById('translate-result');
 
-  let history     = [];
-  let debateMode  = 'text';
-  let mediaRecorder = null;
-  let audioChunks   = [];
-  let isRecording   = false;
-  let isThinking    = false;
-  let userTurns     = 0;
+  let history    = [];
+  let debateMode = 'text';
+  let isThinking = false;
+  let userTurns  = 0;
   const MAX_TURNS   = 3;
   const STORAGE_KEY = `debate_${articleId}`;
 
@@ -78,16 +75,17 @@ async function showDebate(articleId, article) {
     debateMode = 'text';
     document.getElementById('debate-mode-text').classList.add('active');
     document.getElementById('debate-mode-voice').classList.remove('active');
-    document.getElementById('debate-text-row').classList.remove('hidden');
-    micBtn.classList.add('hidden');
+    textInput.placeholder = 'Write in Italian…';
+    dictationHint.classList.add('hidden');
   });
 
   document.getElementById('debate-mode-voice').addEventListener('click', () => {
     debateMode = 'voice';
     document.getElementById('debate-mode-voice').classList.add('active');
     document.getElementById('debate-mode-text').classList.remove('active');
-    document.getElementById('debate-text-row').classList.add('hidden');
-    micBtn.classList.remove('hidden');
+    textInput.placeholder = 'Tap 🎤 on your keyboard, speak, then send…';
+    dictationHint.classList.remove('hidden');
+    textInput.focus();
   });
 
   function addBubble(role, text) {
@@ -149,13 +147,12 @@ async function showDebate(articleId, article) {
     showThinking();
 
     try {
-      const payload = { history: history.slice(0, -1), mode, content: userText, final_turn: userTurns >= MAX_TURNS };
+      const payload = { history: history.slice(0, -1), mode: 'text', content: userText, final_turn: userTurns >= MAX_TURNS };
       const data = await API.debate.message(articleId, payload);
       hideThinking();
       addBubble('assistant', data.assistant_text);
       history.push({ role: 'assistant', content: data.assistant_text });
       saveProgress();
-      if (mode === 'voice') await speakText(data.assistant_text);
       if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
     } catch (e) {
       hideThinking();
@@ -167,17 +164,6 @@ async function showDebate(articleId, article) {
         endBtn.disabled = false;
       }
     }
-  }
-
-  async function speakText(text) {
-    if (!('speechSynthesis' in window)) return;
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'it-IT';
-    const voices = speechSynthesis.getVoices();
-    const italian = voices.find(v => v.lang.startsWith('it'));
-    if (italian) utt.voice = italian;
-    utt.rate = 0.9;
-    return new Promise(resolve => { utt.onend = resolve; speechSynthesis.speak(utt); });
   }
 
   sendTextBtn.addEventListener('click', () => {
@@ -220,97 +206,6 @@ async function showDebate(articleId, article) {
     if (e.key === 'Enter') { e.preventDefault(); doTranslate(); }
   });
 
-  // Voice mode — continuous recognition, manual Send button
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let activeRecog = null;
-  let liveTranscript = '';
-
-  // Insert send-voice button (hidden by default)
-  const sendVoiceBtn = document.createElement('button');
-  sendVoiceBtn.id = 'send-voice-btn';
-  sendVoiceBtn.className = 'btn btn-primary btn-full hidden';
-  sendVoiceBtn.textContent = '✓ Send answer';
-  micBtn.parentElement.insertBefore(sendVoiceBtn, micBtn.nextSibling);
-
-  micBtn.addEventListener('click', () => {
-    if (isRecording || isThinking) return;
-    if (!SpeechRecognition) { showToast('Speech recognition not supported on this browser.'); return; }
-
-    liveTranscript = '';
-    const recog = new SpeechRecognition();
-    activeRecog = recog;
-    recog.lang = 'it-IT';
-    recog.continuous = true;
-    recog.interimResults = true;
-
-    recog.onstart = () => {
-      isRecording = true;
-      micBtn.classList.add('recording');
-      micBtn.textContent = '🔴 Recording…';
-      sendVoiceBtn.classList.remove('hidden');
-      endBtn.classList.add('hidden');
-    };
-
-    recog.onresult = (e) => {
-      let interim = '';
-      liveTranscript = '';
-      for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) liveTranscript += e.results[i][0].transcript;
-        else interim += e.results[i][0].transcript;
-      }
-      micBtn.textContent = `🔴 ${liveTranscript || interim || '…'}`;
-    };
-
-    recog.onerror = (e) => {
-      if (e.error !== 'no-speech') showToast('Recognition error. Try again.');
-    };
-
-    recog.onend = () => {
-      isRecording = false;
-      activeRecog = null;
-      micBtn.classList.remove('recording');
-      micBtn.textContent = '🎤 Tap to record';
-      sendVoiceBtn.classList.add('hidden');
-      endBtn.classList.remove('hidden');
-    };
-
-    recog.start();
-  });
-
-  async function submitVoice() {
-    if (activeRecog) { activeRecog.stop(); activeRecog = null; }
-    const userText = liveTranscript.trim();
-    if (!userText) { showToast('Nothing recorded.'); return; }
-
-    userTurns++;
-    isThinking = true;
-    endBtn.disabled = true;
-    addBubble('user', userText);
-    history.push({ role: 'user', content: userText });
-    showThinking();
-    try {
-      const data = await API.debate.message(articleId, {
-        history: history.slice(0, -1),
-        mode: 'voice',
-        content: userText,
-        final_turn: userTurns >= MAX_TURNS,
-      });
-      hideThinking();
-      addBubble('assistant', data.assistant_text);
-      history.push({ role: 'assistant', content: data.assistant_text });
-      saveProgress();
-      await speakText(data.assistant_text);
-      if (userTurns >= MAX_TURNS) { await autoEnd(); return; }
-    } catch (err) {
-      hideThinking();
-      addBubble('assistant', '[Error. Please try again.]');
-    } finally {
-      isThinking = false;
-      if (userTurns < MAX_TURNS) endBtn.disabled = false;
-    }
-  }
-
-  sendVoiceBtn.addEventListener('click', submitVoice);
 
   let endTapOnce = false;
   endBtn.addEventListener('click', async () => {
