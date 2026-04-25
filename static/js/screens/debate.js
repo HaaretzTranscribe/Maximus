@@ -122,7 +122,6 @@ async function showDebate(articleId, article) {
 
   function lockInput() {
     sendTextBtn.disabled = true;
-    micBtn.disabled = true;
     textInput.disabled = true;
     textInput.placeholder = 'Debate complete.';
   }

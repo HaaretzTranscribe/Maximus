@@ -125,9 +125,9 @@ def send_message(article_id):
         get_db().table("articles").update({"status": "in_progress"}).eq("id", article_id).execute()
 
     system_msg = DEBATE_SYSTEM.format(
-        article_title=article["title"],
-        article_section=article["section"],
-        article_body=article["body"],
+        article_title=article["title"].replace("{", "{{").replace("}", "}}"),
+        article_section=article["section"].replace("{", "{{").replace("}", "}}"),
+        article_body=article["body"].replace("{", "{{").replace("}", "}}"),
     )
 
     messages = [{"role": "system", "content": system_msg}]

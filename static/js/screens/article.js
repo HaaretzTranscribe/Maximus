@@ -225,7 +225,7 @@ function buildSentenceSpans(text) {
       return `<span class="audio-sentence" id="s-${idx++}">${escapeHtml(s)}</span>`;
     }).join(' ');
   });
-  return htmlParas.join('\n\n');
+  return htmlParas.join('<br><br>');
 }
 
 function escapeHtml(str) {

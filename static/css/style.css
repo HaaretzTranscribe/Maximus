@@ -60,6 +60,7 @@ html, body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: none;
   padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)) 16px;
 }
 .screen.active { display: flex; }
@@ -394,7 +395,6 @@ html, body {
   font-size: 1rem;
   line-height: 1.8;
   color: var(--text);
-  white-space: pre-wrap;
   /* Critical for iOS native Look Up / Translate / Share */
   user-select: text;
   -webkit-user-select: text;
@@ -403,10 +403,12 @@ html, body {
   margin-bottom: 24px;
   font-weight: 400;
 }
-/* Spans must not block iOS selection — no pointer-events override, no transitions */
+/* Spans must not block iOS selection — explicit user-select, no pointer-events override, no transitions */
 .audio-sentence {
   border-radius: 3px;
   display: inline;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .audio-active { background: #fff3a3; }
 
