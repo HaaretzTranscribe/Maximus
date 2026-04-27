@@ -776,6 +776,48 @@ canvas { width: 100% !important; height: 100% !important; }
 }
 .error-pattern-item:last-child { border-bottom: none; }
 
+.cefr-setting {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.cefr-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+.cefr-options {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.cefr-btn {
+  flex: 1;
+  padding: 7px 4px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+}
+.cefr-btn.active {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-light);
+}
+.cefr-hint {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
 .date-filters {
   display: flex;
   gap: 8px;

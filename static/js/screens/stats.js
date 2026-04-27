@@ -7,6 +7,16 @@ async function showStats() {
         <h1>My Stats</h1>
       </div>
 
+      <div class="cefr-setting">
+        <label class="cefr-label">Debate level</label>
+        <div class="cefr-options" id="cefr-options">
+          ${['A1','A2','B1','B2','C1','C2'].map(l =>
+            `<button class="cefr-btn${(localStorage.getItem('maximus_cefr_level')||'B2')===l?' active':''}" data-level="${l}">${l}</button>`
+          ).join('')}
+        </div>
+        <span class="cefr-hint">Debates are scored against this CEFR target</span>
+      </div>
+
       <div class="date-filters">
         <label>From</label>
         <input type="date" id="filter-from">
@@ -38,6 +48,13 @@ async function showStats() {
 
   document.getElementById('stats-back').addEventListener('click', () => Router.go('home'));
   document.getElementById('filter-apply').addEventListener('click', loadStats);
+
+  document.getElementById('cefr-options').addEventListener('click', e => {
+    const btn = e.target.closest('.cefr-btn');
+    if (!btn) return;
+    localStorage.setItem('maximus_cefr_level', btn.dataset.level);
+    document.querySelectorAll('.cefr-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
 
   let chart = null;
 

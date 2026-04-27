@@ -24,36 +24,47 @@ Titolo: {article_title}
 Sezione: {article_section}
 Testo: {article_body}"""
 
-SCORING_PROMPT = """You are evaluating a language learner's performance in an Italian conversation about a specific article. The user is Amnon, a Hebrew speaker learning Italian.
+SCORING_PROMPT = """You are evaluating a language learner's Italian conversation about a specific article.
 
 CONTEXT:
 Article title: {article_title}
 Article section: {article_section}
 Article excerpt (first 500 words): {article_body_excerpt}
 
+TARGET CEFR LEVEL: {cefr_level}
+Grade the user AGAINST this target level. A score of 100 means perfect {cefr_level} performance. If the user writes below {cefr_level}, the score reflects the gap. If they exceed it, cap at 100. Do not auto-calibrate downward — hold them to the {cefr_level} standard.
+
 USER'S DEBATE TRANSCRIPT (Italian):
 {transcript}
 
 TASK:
-1. Assign ONE overall score from 0 to 100. Calibrate the score to the LEVEL the user demonstrated. An advanced-level response should be graded against advanced standards; a basic response against basic standards. Do NOT grade a clearly basic user harshly on advanced criteria — grade proportionally.
-2. Write an error explanation IN HEBREW that:
-   - Lists specific grammatical errors with the wrong form, the correct form, and a brief explanation (e.g., "כתבת 'penso che è' — הצורה הנכונה היא 'penso che sia', כי אחרי 'penso che' נדרש שימוש בקונגיונטיבו").
-   - Notes vocabulary issues (wrong word choice, Anglicisms, calques from English/Hebrew).
-   - Comments briefly on argument quality and engagement with the article content.
-   - If voice mode, note pronunciation issues inferred from the transcript (unusual word choices that suggest mishearing, etc.).
-3. Tag errors into categories for later stats aggregation.
+1. Assign ONE overall score from 0 to 100 against the {cefr_level} standard.
+2. Write feedback IN HEBREW structured as follows:
+
+**סיכום כללי**: 1-2 משפטים על הרמה הכללית.
+
+**שגיאות**: For EACH mistake, use this exact format:
+❌ כתבת: "[exact wrong text from transcript]"
+✅ נכון: "[corrected version]"
+💡 למה: [brief Hebrew explanation of the rule]
+
+Cover grammar errors, wrong vocabulary, Hebraisms/Anglicisms, and weak argumentation. If there are no errors in a category, skip it. If voice mode, note any pronunciation issues.
+
+**מה עבד טוב**: briefly note 1-2 things done well.
+
+3. Tag errors into categories for stats.
 
 OUTPUT FORMAT (strict JSON):
-{
+{{
   "overall_score": <int 0-100>,
-  "error_explanation_hebrew": "<string, Hebrew, can be multi-paragraph>",
-  "error_categories": {
+  "error_explanation_hebrew": "<Hebrew string with the structured feedback above>",
+  "error_categories": {{
     "grammar": ["<tag>", ...],
     "vocabulary": ["<tag>", ...],
     "argumentation": ["<tag>", ...],
     "pronunciation": ["<tag>", ...]
-  }
-}
+  }}
+}}
 
 Respond ONLY with valid JSON. No preamble, no markdown fences."""
 
@@ -162,8 +173,9 @@ def end_debate(article_id):
     body = request.get_json()
     transcript = body.get("transcript", [])
     mode = body.get("mode", "text")
+    cefr_level = body.get("cefr_level", "B2")
 
-    # Build transcript string for scoring (user turns only for analysis)
+    # Build transcript string for scoring
     transcript_str = "\n".join(
         f"[{t['role'].upper()}]: {t['content']}" for t in transcript
     )
@@ -171,13 +183,12 @@ def end_debate(article_id):
     body_words = article["body"].split()
     excerpt = " ".join(body_words[:500])
 
-    # Use str.replace instead of .format() — the prompt contains literal { }
-    # in the JSON example which would cause KeyError with .format()
     scoring_prompt = (SCORING_PROMPT
         .replace("{article_title}", article["title"])
         .replace("{article_section}", article["section"])
         .replace("{article_body_excerpt}", excerpt)
         .replace("{transcript}", transcript_str)
+        .replace("{cefr_level}", cefr_level)
     )
 
     try:

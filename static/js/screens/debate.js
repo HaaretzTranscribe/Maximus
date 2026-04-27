@@ -221,7 +221,8 @@ async function showDebate(articleId, article) {
     endBtn.innerHTML = '<span class="spinner"></span> Scoring…';
 
     try {
-      const result = await API.debate.end(articleId, { transcript: history, mode: debateMode });
+      const cefrLevel = localStorage.getItem('maximus_cefr_level') || 'B2';
+      const result = await API.debate.end(articleId, { transcript: history, mode: debateMode, cefr_level: cefrLevel });
       clearProgress();
       Router.go('score', { score: result.score, feedback: result.error_explanation_hebrew, articleId });
     } catch (e) {
